@@ -1,0 +1,13 @@
+.godot/
+*.translation
+export.cfg
+export_presets.cfg
+.DS_Store
+Thumbs.db
+builds/
+.godot/export_credentials.cfg
+*.keystore
+android/.gradle/
+android/build/
+*.tmp
+*.log

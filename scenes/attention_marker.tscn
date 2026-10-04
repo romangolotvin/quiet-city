@@ -1,0 +1,7 @@
+[gd_scene format=3 uid="uid://bvvq5hrb1mbik"]
+
+[ext_resource type="Script" path="res://scripts/attention_marker.gd" id="1_mark"]
+
+[node name="AttentionMarker" type="Node2D"]
+z_index = 10
+script = ExtResource("1_mark")
