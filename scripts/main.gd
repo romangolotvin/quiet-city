@@ -277,11 +277,8 @@ func _on_accused(suspect_id: String) -> void:
 	ending.finished.connect(_on_ending_finished)
 
 
-func _on_ending_finished(ok: bool) -> void:
-	if ok:
-		get_tree().change_scene_to_file("res://scenes/menu.tscn")
-	else:
-		_show_toast("Не сходится. Сверь время и цвет — попробуй снова.")
+func _on_ending_finished(_ok: bool) -> void:
+	get_tree().change_scene_to_file("res://scenes/menu.tscn")
 
 
 func _show_toast(text: String) -> void:

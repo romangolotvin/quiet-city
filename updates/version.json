@@ -1,6 +1,6 @@
 {
-  "version": "1.1.5",
-  "notes": "Финал дела, крупный шрифт, меню по центру. Исправление скриптов.",
+  "version": "1.1.6",
+  "notes": "Неверный ответ тоже возвращает в меню.",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }
