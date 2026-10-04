@@ -66,13 +66,15 @@ func _advance() -> void:
 func _set_phase(phase: int) -> void:
 	_phase = phase
 	_phase_t = 0.0
+	var label := str(_suspect.get("label", "Подозреваемый"))
+	var cry := str(_suspect.get("cry", "плачет"))
 	if _ok:
 		if phase == 0:
 			_caption.text = "Все радуются! Дело раскрыто."
 		else:
-			_caption.text = "%s за решёткой и плачет." % str(_suspect.get("label", "Виновный"))
+			_caption.text = "%s за решёткой и %s." % [label, cry]
 	else:
-		_caption.text = "«Это был не я!»\n%s плачет за решёткой." % str(_suspect.get("label", "Подозреваемый"))
+		_caption.text = "«Это был не я!»\n%s %s за решёткой." % [label, cry]
 	queue_redraw()
 
 

@@ -77,3 +77,24 @@ static func place(id: String) -> Dictionary:
 
 static func pos_of(id: String) -> Vector2:
 	return PLACES[id]["pos"]
+
+
+## Границы сетки камеры по точкам города (в клетках GRID_SIZE).
+static func grid_bounds() -> Rect2i:
+	var min_x := 999
+	var max_x := -999
+	var min_y := 999
+	var max_y := -999
+	for id in PLACES:
+		var p: Vector2 = PLACES[id]["pos"]
+		var gx := int(round(p.x / 256.0))
+		var gy := int(round(p.y / 256.0))
+		min_x = mini(min_x, gx)
+		max_x = maxi(max_x, gx)
+		min_y = mini(min_y, gy)
+		max_y = maxi(max_y, gy)
+	return Rect2i(min_x, min_y, max_x - min_x + 1, max_y - min_y + 1)
+
+
+static func in_city(grid: Vector2i) -> bool:
+	return grid_bounds().has_point(grid)

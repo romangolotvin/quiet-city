@@ -162,7 +162,12 @@ func _handle_drag(event: InputEventScreenDrag) -> void:
 
 
 func _move_camera(dir: Vector2i) -> void:
-	_grid_pos += dir
+	var next := _grid_pos + dir
+	if not MapLayout.in_city(next):
+		_show_toast("Дальше город заканчивается.")
+		_move_cd = MOVE_COOLDOWN * 0.6
+		return
+	_grid_pos = next
 	_move_cd = MOVE_COOLDOWN
 	var target := Vector2(_grid_pos) * GRID_SIZE
 	if _camera_tween and _camera_tween.is_running():
