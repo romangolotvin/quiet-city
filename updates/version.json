@@ -1,6 +1,6 @@
 {
-  "version": "1.1.1",
-  "notes": "Lounge-jazz вместо эмбиента.",
+  "version": "1.1.2",
+  "notes": "Обновление скачивается и ставится прямо в приложении.",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }

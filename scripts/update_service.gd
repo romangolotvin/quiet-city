@@ -38,6 +38,8 @@ func check_for_updates(silent := false) -> void:
 		return
 	busy = true
 	_mode = "manifest"
+	_http.timeout = 25.0
+	_http.download_file = ""
 	if not silent:
 		status.emit("Проверяю обновления…")
 	var url := _manifest_url()
@@ -62,25 +64,25 @@ func start_update() -> void:
 		update_failed.emit("Нет ссылки на сборку для этой платформы.")
 		return
 	var url := str(latest[key])
-	if OS.get_name() == "Android":
-		# На Android надёжнее открыть страницу/файл установки.
-		status.emit("Открываю загрузку обновления…")
-		OS.shell_open(url)
-		update_ready.emit()
-		return
 	if OS.has_feature("editor"):
 		update_failed.emit("Обновление ставится только из собранной игры, не из редактора.")
 		return
+
 	busy = true
 	_mode = "download"
-	_download_path = "user://updates/QuietCity-update.zip"
 	DirAccess.make_dir_recursive_absolute("user://updates")
+	if OS.get_name() == "Android":
+		_download_path = "user://updates/QuietCity.apk"
+	else:
+		_download_path = "user://updates/QuietCity-update.zip"
 	_http.download_file = ProjectSettings.globalize_path(_download_path)
+	_http.timeout = 0.0 # без лимита — APK/zip большие
 	status.emit("Скачиваю обновление…")
 	var err := _http.request(url)
 	if err != OK:
 		busy = false
 		_http.download_file = ""
+		_http.timeout = 25.0
 		update_failed.emit("Не удалось начать загрузку.")
 
 
@@ -135,6 +137,7 @@ func _parse_version(text: String) -> Array[int]:
 
 func _on_request_completed(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 	_http.download_file = ""
+	_http.timeout = 25.0
 	if result != HTTPRequest.RESULT_SUCCESS or response_code < 200 or response_code >= 300:
 		busy = false
 		if _mode == "download":
@@ -171,6 +174,13 @@ func _handle_manifest(body: PackedByteArray) -> void:
 func _handle_download_done() -> void:
 	busy = false
 	status.emit("Готовлю установку…")
+	if OS.get_name() == "Android":
+		if not _install_android_apk():
+			update_failed.emit("Не удалось открыть установку. Разреши установку из этого приложения в настройках Android и нажми обновление снова.")
+			return
+		update_ready.emit()
+		status.emit("Подтверди установку в окне Android.")
+		return
 	if not _apply_windows_update():
 		update_failed.emit("Не удалось подготовить установку обновления.")
 		return
@@ -179,6 +189,55 @@ func _handle_download_done() -> void:
 	get_tree().create_timer(0.35).timeout.connect(func() -> void:
 		get_tree().quit()
 	)
+
+
+func _install_android_apk() -> bool:
+	if not FileAccess.file_exists(_download_path):
+		return false
+	var absolute := ProjectSettings.globalize_path(_download_path)
+	var android_runtime = Engine.get_singleton("AndroidRuntime")
+	if android_runtime == null:
+		# Запасной путь: открыть локальный файл (на новых Android может не сработать).
+		OS.shell_open(absolute)
+		return true
+
+	var activity = android_runtime.getActivity()
+	if activity == null:
+		return false
+
+	var Intent = JavaClassWrapper.wrap("android.content.Intent")
+	var Uri = JavaClassWrapper.wrap("android.net.Uri")
+	var File = JavaClassWrapper.wrap("java.io.File")
+	var FileProvider = JavaClassWrapper.wrap("androidx.core.content.FileProvider")
+	var Settings = JavaClassWrapper.wrap("android.provider.Settings")
+	var BuildVersion = JavaClassWrapper.wrap("android.os.Build$VERSION")
+
+	# Android 8+: нужно разрешение «Установка неизвестных приложений».
+	if int(BuildVersion.SDK_INT) >= 26:
+		var pm = activity.getPackageManager()
+		if pm != null and not bool(pm.canRequestPackageInstalls()):
+			var settings_intent = Intent.Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
+			settings_intent.setData(Uri.parse("package:%s" % activity.getPackageName()))
+			activity.startActivity(settings_intent)
+			status.emit("Разреши установку из «Тихий город», затем снова нажми «Обновить».")
+			return true
+
+	var file = File.File(absolute)
+	if not bool(file.exists()):
+		return false
+
+	var authority := "%s.fileprovider" % activity.getPackageName()
+	var uri = FileProvider.getUriForFile(activity, authority, file)
+	var intent = Intent.Intent(Intent.ACTION_VIEW)
+	intent.setDataAndType(uri, "application/vnd.android.package-archive")
+	intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+	intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+	var install := func() -> void:
+		activity.startActivity(intent)
+
+	activity.runOnUiThread(android_runtime.createRunnableFromGodotCallable(install))
+	return true
 
 
 func _apply_windows_update() -> bool:
