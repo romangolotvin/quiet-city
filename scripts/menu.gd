@@ -114,34 +114,37 @@ func _run(action: String, arg: String) -> void:
 func _build_shell() -> void:
 	_column = VBoxContainer.new()
 	_column.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_column.add_theme_constant_override("separation", 10)
+	_column.alignment = BoxContainer.ALIGNMENT_CENTER
+	_column.add_theme_constant_override("separation", 14)
 	_column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(_column)
 
 	_title = Label.new()
 	_title.text = "Тихий город"
 	_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_title.add_theme_font_size_override("font_size", 42)
+	_title.add_theme_font_size_override("font_size", 56)
 	_title.add_theme_color_override("font_color", INK)
 	_column.add_child(_title)
 
 	_subtitle = Label.new()
 	_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_subtitle.add_theme_font_size_override("font_size", 16)
+	_subtitle.add_theme_font_size_override("font_size", 22)
 	_subtitle.add_theme_color_override("font_color", Color(0.28, 0.2, 0.14))
 	_column.add_child(_subtitle)
 
 	_scroll = ScrollContainer.new()
-	_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_scroll.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	_scroll.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	_scroll.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_column.add_child(_scroll)
 
 	_list = VBoxContainer.new()
-	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_list.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	_list.alignment = BoxContainer.ALIGNMENT_CENTER
-	_list.add_theme_constant_override("separation", 10)
+	_list.add_theme_constant_override("separation", 14)
 	_list.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_scroll.add_child(_list)
 
@@ -151,11 +154,16 @@ func _apply_safe_layout() -> void:
 		return
 	var m := UiFit.margins(get_viewport())
 	var compact := UiFit.is_compact(get_viewport())
-	_column.offset_left = m.position.x + 24.0
-	_column.offset_top = m.position.y + (36.0 if compact else 88.0)
-	_column.offset_right = -(get_viewport_rect().size.x - m.end.x) - 24.0
-	_column.offset_bottom = -(get_viewport_rect().size.y - m.end.y) - 12.0
-	_title.add_theme_font_size_override("font_size", 34 if compact else 44)
+	var side := 28.0
+	_column.offset_left = m.position.x + side
+	_column.offset_top = m.position.y + (20.0 if compact else 28.0)
+	_column.offset_right = -(get_viewport_rect().size.x - m.end.x) - side
+	_column.offset_bottom = -(get_viewport_rect().size.y - m.end.y) - 16.0
+	_title.add_theme_font_size_override("font_size", 44 if compact else 58)
+	_subtitle.add_theme_font_size_override("font_size", 20 if compact else 24)
+	var btn_w := mini(560.0, m.size.x - 40.0)
+	_scroll.custom_minimum_size = Vector2(btn_w, mini(m.size.y * 0.55, 420.0))
+	_list.custom_minimum_size = Vector2(btn_w, 0.0)
 	queue_redraw()
 
 
@@ -267,7 +275,8 @@ func _clear_hits() -> void:
 func _add_button(text: String, bg: Color, action: String, arg: String = "") -> void:
 	var compact := UiFit.is_compact(get_viewport())
 	var btn := ColorRect.new()
-	btn.custom_minimum_size = Vector2(0, 64 if compact else 72)
+	btn.custom_minimum_size = Vector2(_list.custom_minimum_size.x, 76 if compact else 84)
+	btn.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	btn.color = bg
 	btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var label := Label.new()
@@ -276,10 +285,10 @@ func _add_button(text: String, bg: Color, action: String, arg: String = "") -> v
 	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	label.set_anchors_preset(Control.PRESET_FULL_RECT)
-	label.offset_left = 12
-	label.offset_right = -12
+	label.offset_left = 16
+	label.offset_right = -16
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.add_theme_font_size_override("font_size", 18 if compact else 20)
+	label.add_theme_font_size_override("font_size", 24 if compact else 28)
 	label.add_theme_color_override("font_color", INK)
 	btn.add_child(label)
 	_list.add_child(btn)

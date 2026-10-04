@@ -29,7 +29,7 @@ mouse_filter = 2
 theme_override_colors/font_color = Color(0.16, 0.12, 0.08, 1)
 theme_override_colors/font_outline_color = Color(1, 0.97, 0.9, 0.9)
 theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 24
 text = "Знак — услышать. Место — осмотреть."
 
 [node name="MenuButton" type="Label" parent="UI"]
@@ -45,7 +45,7 @@ mouse_filter = 2
 theme_override_colors/font_color = Color(0.16, 0.12, 0.08, 1)
 theme_override_colors/font_outline_color = Color(1, 0.97, 0.9, 0.9)
 theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 20
+theme_override_font_sizes/font_size = 26
 text = "Меню"
 horizontal_alignment = 2
 vertical_alignment = 1
@@ -62,7 +62,7 @@ mouse_filter = 2
 theme_override_colors/font_color = Color(0.16, 0.12, 0.08, 1)
 theme_override_colors/font_outline_color = Color(1, 0.97, 0.9, 0.95)
 theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 17
+theme_override_font_sizes/font_size = 22
 text = ""
 horizontal_alignment = 1
 autowrap_mode = 3
@@ -130,26 +130,26 @@ theme_override_constants/separation = 8
 [node name="BookTitle" type="Label" parent="UI/Journal/Spread/Pages/LeftPage"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.18, 0.14, 0.1, 1)
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 30
 text = "Дело: пропавшая сумка"
 
 [node name="Intro" type="Label" parent="UI/Journal/Spread/Pages/LeftPage"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.28, 0.22, 0.16, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 20
 text = "Вечером у калитки пропала сумка."
 autowrap_mode = 3
 
 [node name="ObsHeader" type="Label" parent="UI/Journal/Spread/Pages/LeftPage"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.18, 0.14, 0.1, 1)
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 24
 text = "Наблюдения"
 
 [node name="EmptyNote" type="Label" parent="UI/Journal/Spread/Pages/LeftPage"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.42, 0.34, 0.26, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 20
 text = "Пока пусто. Найди знаки внимания на карте — услышанное попадёт сюда."
 autowrap_mode = 3
 
@@ -178,7 +178,7 @@ theme_override_constants/separation = 8
 [node name="KeyHeader" type="Label" parent="UI/Journal/Spread/Pages/RightPage"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.18, 0.14, 0.1, 1)
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 24
 text = "Цвета волн"
 
 [node name="Entries" type="VBoxContainer" parent="UI/Journal/Spread/Pages/RightPage"]
@@ -188,13 +188,13 @@ theme_override_constants/separation = 6
 [node name="MysteryHeader" type="Label" parent="UI/Journal/Spread/Pages/RightPage"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.18, 0.14, 0.1, 1)
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 24
 text = "Загадка"
 
 [node name="MysteryHint" type="Label" parent="UI/Journal/Spread/Pages/RightPage"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.28, 0.22, 0.16, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 20
 text = "Когда все знаки записаны, здесь появятся подозреваемые."
 autowrap_mode = 3
 
@@ -216,7 +216,7 @@ theme_override_constants/separation = 8
 [node name="Verdict" type="Label" parent="UI/Journal/Spread/Pages/RightPage/RightScroll/RightInner"]
 layout_mode = 2
 theme_override_colors/font_color = Color(0.28, 0.22, 0.16, 1)
-theme_override_font_sizes/font_size = 14
+theme_override_font_sizes/font_size = 20
 text = ""
 autowrap_mode = 3
 
@@ -231,7 +231,7 @@ offset_right = -28.0
 offset_bottom = 52.0
 grow_horizontal = 0
 theme_override_colors/font_color = Color(0.35, 0.22, 0.18, 0.9)
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 24
 text = "Закрыть"
 horizontal_alignment = 2
 vertical_alignment = 1

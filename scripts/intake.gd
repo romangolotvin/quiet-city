@@ -102,7 +102,7 @@ func _build_ui() -> void:
 
 	_name_label = Label.new()
 	_name_label.text = str(_intake.get("client_name", "Заявитель"))
-	_name_label.add_theme_font_size_override("font_size", 18)
+	_name_label.add_theme_font_size_override("font_size", 24)
 	_name_label.add_theme_color_override("font_color", INK)
 	_name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_bubble.add_child(_name_label)
@@ -110,7 +110,7 @@ func _build_ui() -> void:
 	_speech = Label.new()
 	_speech.text = str(_intake.get("speech", _case.get("brief", "")))
 	_speech.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_speech.add_theme_font_size_override("font_size", 16)
+	_speech.add_theme_font_size_override("font_size", 22)
 	_speech.add_theme_color_override("font_color", Color(0.22, 0.16, 0.12))
 	_speech.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_bubble.add_child(_speech)
@@ -135,7 +135,7 @@ func _make_button(text: String, bg: Color) -> ColorRect:
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	lbl.add_theme_font_size_override("font_size", 17)
+	lbl.add_theme_font_size_override("font_size", 22)
 	lbl.add_theme_color_override("font_color", INK)
 	lbl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -146,7 +146,7 @@ func _make_button(text: String, bg: Color) -> ColorRect:
 func _apply_layout() -> void:
 	var m := UiFit.margins(get_viewport())
 	var compact := UiFit.is_compact(get_viewport())
-	var bubble_h := 150.0 if compact else 170.0
+	var bubble_h := 175.0 if compact else 200.0
 	_bubble.position = Vector2(m.position.x + 18.0, m.position.y + 16.0)
 	_bubble.size = Vector2(m.size.x - 36.0, bubble_h)
 	_name_label.position = Vector2(14, 8)
@@ -154,7 +154,7 @@ func _apply_layout() -> void:
 	_speech.position = Vector2(14, 36)
 	_speech.size = Vector2(_bubble.size.x - 28.0, bubble_h - 50.0)
 
-	var btn_h := 58.0 if compact else 64.0
+	var btn_h := 70.0 if compact else 78.0
 	var gap := 12.0
 	var btn_w := (m.size.x - 36.0 - gap) * 0.5
 	var by := m.end.y - btn_h - 14.0

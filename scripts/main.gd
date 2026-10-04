@@ -8,6 +8,7 @@ const HINT_IDLE := "Знак — услышать. Место — осмотре
 
 const WaveScene := preload("res://scenes/wave.tscn")
 const MarkerScene := preload("res://scenes/attention_marker.tscn")
+const EndingScene := preload("res://scenes/ending.tscn")
 
 @onready var camera: Camera2D = $Camera2D
 @onready var waves: Node2D = $Waves
@@ -265,10 +266,22 @@ func _refresh_place_hint() -> void:
 
 
 func _on_accused(suspect_id: String) -> void:
-	if journal.apply_verdict(suspect_id):
-		_show_toast("Дело закрыто.")
+	if journal.solved:
+		return
+	var ok := journal.apply_verdict(suspect_id)
+	GameState.start_ending(ok, suspect_id)
+	if journal.is_open:
+		journal.close_journal()
+	var ending := EndingScene.instantiate()
+	$UI.add_child(ending)
+	ending.finished.connect(_on_ending_finished)
+
+
+func _on_ending_finished(ok: bool) -> void:
+	if ok:
+		get_tree().change_scene_to_file("res://scenes/menu.tscn")
 	else:
-		_show_toast("Не сходится. Сверь время и цвет.")
+		_show_toast("Не сходится. Сверь время и цвет — попробуй снова.")
 
 
 func _show_toast(text: String) -> void:

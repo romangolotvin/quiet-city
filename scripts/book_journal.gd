@@ -149,12 +149,6 @@ func apply_verdict(suspect_id: String) -> bool:
 	var ok := suspect_id == str(_case["correct"])
 	if ok:
 		solved = true
-		verdict.text = str(_case["verdict_ok"]) + "\n\n«Меню» — выбрать другое дело."
-		verdict.add_theme_color_override("font_color", Color(0.16, 0.42, 0.22))
-		_refresh_mystery()
-	else:
-		verdict.text = CaseCatalog.VERDICT_BAD
-		verdict.add_theme_color_override("font_color", Color(0.55, 0.18, 0.16))
 	return ok
 
 
@@ -194,7 +188,7 @@ func _fill_legend() -> void:
 		var title := Label.new()
 		title.text = "%s — %s" % [SoundCatalog.wave_name(kind), SoundCatalog.title(kind)]
 		title.add_theme_color_override("font_color", INK)
-		title.add_theme_font_size_override("font_size", 15)
+		title.add_theme_font_size_override("font_size", 20)
 		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		row.add_child(swatch)
@@ -218,7 +212,7 @@ func _refresh_log() -> void:
 		var title := Label.new()
 		title.text = "%s  %s  ·  %s" % [event["time"], SoundCatalog.wave_name(kind), event["place"]]
 		title.add_theme_color_override("font_color", INK)
-		title.add_theme_font_size_override("font_size", 16)
+		title.add_theme_font_size_override("font_size", 22)
 		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		head.add_child(swatch)
@@ -226,7 +220,7 @@ func _refresh_log() -> void:
 		var note := Label.new()
 		note.text = str(event["note"])
 		note.add_theme_color_override("font_color", INK_SOFT)
-		note.add_theme_font_size_override("font_size", 14)
+		note.add_theme_font_size_override("font_size", 18)
 		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		block.add_child(head)
 		block.add_child(note)
@@ -247,14 +241,14 @@ func _refresh_mystery() -> void:
 	mystery_hint.text = "%s Важное время: %s." % [_case["ask"], _case["key_time"]]
 	for suspect in _case["suspects"]:
 		var row := ColorRect.new()
-		row.custom_minimum_size = Vector2(0, 64)
+		row.custom_minimum_size = Vector2(0, 78)
 		row.color = ROW_BG
 		row.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.set_meta("suspect_id", suspect["id"])
 		var label := Label.new()
 		label.text = "%s\n%s" % [suspect["label"], suspect["hint"]]
 		label.add_theme_color_override("font_color", INK)
-		label.add_theme_font_size_override("font_size", 15)
+		label.add_theme_font_size_override("font_size", 20)
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		label.set_anchors_preset(Control.PRESET_FULL_RECT)
 		label.offset_left = 10
