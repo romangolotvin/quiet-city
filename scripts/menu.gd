@@ -96,7 +96,7 @@ func _run(action: String, arg: String) -> void:
 			_show_title()
 		"case":
 			GameState.case_id = arg
-			get_tree().change_scene_to_file("res://scenes/main.tscn")
+			get_tree().change_scene_to_file("res://scenes/intake.tscn")
 		"toggle_music":
 			AppSettings.set_music_enabled(not AppSettings.music_enabled)
 			_show_settings()
