@@ -100,8 +100,19 @@ func _manifest_error_text(result: int, response_code: int) -> String:
 		return "Файл обновлений ещё не выложен в интернет (404)."
 	if response_code == 403:
 		return "Доступ к серверу обновлений запрещён (403)."
-	if result != HTTPRequest.RESULT_SUCCESS:
-		return "Нет интернета или сервер недоступен."
+	match result:
+		HTTPRequest.RESULT_CANT_RESOLVE:
+			return "Не удалось найти сервер обновлений (DNS)."
+		HTTPRequest.RESULT_CANT_CONNECT:
+			return "Нет доступа в интернет у приложения. Переустанови APK."
+		HTTPRequest.RESULT_TLS_HANDSHAKE_ERROR:
+			return "Ошибка защищённого соединения (TLS)."
+		HTTPRequest.RESULT_TIMEOUT:
+			return "Сервер обновлений не ответил вовремя."
+		HTTPRequest.RESULT_SUCCESS:
+			pass
+		_:
+			return "Нет интернета или сервер недоступен (%s)." % result
 	return "Сервер обновлений ответил ошибкой (%s)." % response_code
 
 

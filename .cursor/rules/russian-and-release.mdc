@@ -1,0 +1,39 @@
+---
+description: Отвечать на русском; сразу публиковать каждое нововведение как релиз
+alwaysApply: true
+---
+
+# Русский язык и мгновенный релиз
+
+## Язык
+
+Всегда отвечай пользователю (Ro) на русском.
+
+## После любого нововведения / фикса — сразу публикуй версию
+
+Не спрашивай подтверждений. Сразу выполни полный цикл релиза:
+
+1. **Бамп версии** (semver patch/minor/major по смыслу изменений):
+   - `scripts/update_config.gd` → `APP_VERSION`
+   - `updates/version.json` → поле `version` (+ краткие `notes`)
+   - `export_presets.cfg` → `version/code` (+1) и `version/name`
+2. **Пересобери** через Godot console:
+   - `C:\Users\Roman\Downloads\Godot_v4.7.2-stable_win64.exe\Godot_v4.7.2-stable_win64_console.exe`
+   - Android → `builds/android/QuietCity.apk`
+   - Windows → `builds/QuietCity-windows.zip`
+3. **Commit** нужных файлов (код, `APP_VERSION`, `version.json`, пресеты при необходимости). Бинарники сборок в git не клади, если они в `.gitignore`.
+4. **Push** в `origin/main`.
+5. **GitHub Release** с тегом версии (`vX.Y.Z`), ассеты:
+   - `QuietCity.apk`
+   - `QuietCity-windows.zip`
+
+`MANIFEST_URL` (не менять без причины):
+
+`https://raw.githubusercontent.com/romangolotvin/quiet-city/main/updates/version.json`
+
+В `updates/version.json` ссылки на ассеты должны указывать на:
+
+- `https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip`
+- `https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk`
+
+После публикации проверь: raw `version.json` на `main` = новая версия; `gh release view --latest` отдаёт оба файла. В финале кратко сообщи URL релиза и как проверить автообновление в игре.
