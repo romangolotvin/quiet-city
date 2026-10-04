@@ -1,6 +1,6 @@
 {
-  "version": "1.1.4",
-  "notes": "Финал дела: радость и решётка. Крупнее шрифт, меню по центру.",
+  "version": "1.1.5",
+  "notes": "Финал дела, крупный шрифт, меню по центру. Исправление скриптов.",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }

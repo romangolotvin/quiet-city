@@ -268,11 +268,11 @@ func _refresh_place_hint() -> void:
 func _on_accused(suspect_id: String) -> void:
 	if journal.solved:
 		return
-	var ok := journal.apply_verdict(suspect_id)
+	var ok: bool = journal.apply_verdict(suspect_id)
 	GameState.start_ending(ok, suspect_id)
 	if journal.is_open:
 		journal.close_journal()
-	var ending := EndingScene.instantiate()
+	var ending = EndingScene.instantiate()
 	$UI.add_child(ending)
 	ending.finished.connect(_on_ending_finished)
 

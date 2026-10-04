@@ -110,7 +110,13 @@ func _draw_celebrate(size: Vector2) -> void:
 	for i in 28:
 		var x := fmod(float(i) * 97.3 + _phase_t * 40.0, size.x)
 		var y := fmod(float(i) * 53.1 + _phase_t * 55.0, size.y * 0.7)
-		var c := [Color(0.95, 0.3, 0.35), Color(0.95, 0.85, 0.2), Color(0.3, 0.55, 0.95), Color(0.95, 0.5, 0.8)][i % 4]
+		var palette: Array[Color] = [
+			Color(0.95, 0.3, 0.35),
+			Color(0.95, 0.85, 0.2),
+			Color(0.3, 0.55, 0.95),
+			Color(0.95, 0.5, 0.8),
+		]
+		var c: Color = palette[i % 4]
 		draw_rect(Rect2(x, y, 10, 6), c)
 	var base := Vector2(size.x * 0.5, size.y * 0.62)
 	var bob := sin(_phase_t * 6.0) * 6.0
