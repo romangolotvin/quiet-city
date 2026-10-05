@@ -1,6 +1,6 @@
 {
-  "version": "1.4.0",
-  "notes": "Катсцена камеры при диалоге с NPC. Волны ловятся только с базы у компьютера; планшет — журнал и вердикт.",
+  "version": "1.4.1",
+  "notes": "Исправлена ошибка парсера в квартале (тип переменной want).",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }

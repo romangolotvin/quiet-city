@@ -339,7 +339,7 @@ func _joystick_blocks_touch() -> bool:
 func _sync_joystick_visibility() -> void:
 	if _joystick == null:
 		return
-	var want := DisplayServer.is_touchscreen_available() \
+	var want: bool = DisplayServer.is_touchscreen_available() \
 		and not (_device != null and _device.visible) \
 		and not (_computer != null and _computer.visible) \
 		and not (_dialog != null and _dialog.visible) \
