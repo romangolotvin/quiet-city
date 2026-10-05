@@ -25,13 +25,26 @@ func _ready() -> void:
 
 func open_computer() -> void:
 	visible = true
+	modulate.a = 0.0
 	_refresh()
 	_apply_layout()
+	var panel := get_node_or_null("Panel") as Control
+	if panel:
+		panel.position.y += 24.0
+	var tw := create_tween()
+	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(self, "modulate:a", 1.0, 0.28)
+	if panel:
+		tw.parallel().tween_property(panel, "position:y", panel.position.y - 24.0, 0.3)
 
 
 func close_computer() -> void:
-	visible = false
-	closed.emit()
+	var tw := create_tween()
+	tw.tween_property(self, "modulate:a", 0.0, 0.16)
+	tw.tween_callback(func() -> void:
+		visible = false
+		closed.emit()
+	)
 
 
 func handle_tap(screen_pos: Vector2) -> bool:

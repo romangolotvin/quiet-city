@@ -16,7 +16,9 @@ const WaveScript := preload("res://scripts/wave_3d.gd")
 
 const INK := Color(0.16, 0.11, 0.08)
 const BASE_RADIUS := 130.0
-const CUTSCENE_DURATION := 0.55
+const CUTSCENE_APPROACH := 1.15
+const CUTSCENE_CLOSEUP := 1.35
+const CUTSCENE_HOLD := 0.25
 
 var _player: CharacterBody3D
 var _cams: Node3D
@@ -44,6 +46,7 @@ var _did_drag := false
 var _touch_move := false
 var _bounds := Rect2()
 var _talk_npc: Node3D = null
+var _cutscene_speaker: Node3D = null
 var _dialog_choices := false
 
 
@@ -69,16 +72,17 @@ func _build_world() -> void:
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color(0.72, 0.88, 0.98)
+	environment.background_color = Color(0.62, 0.82, 0.96)
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color(0.92, 0.9, 0.86)
-	environment.ambient_light_energy = 0.55
+	environment.ambient_light_color = Color(0.9, 0.88, 0.84)
+	environment.ambient_light_energy = 0.62
 	env.environment = environment
 	add_child(env)
 
 	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-48, 35, 0)
-	sun.light_energy = 1.05
+	sun.rotation_degrees = Vector3(-52, 28, 0)
+	sun.light_energy = 1.15
+	sun.light_color = Color(1.0, 0.97, 0.9)
 	sun.shadow_enabled = false
 	add_child(sun)
 
@@ -596,40 +600,76 @@ func _present_dialog(title: String, body: String, with_choices: bool, focus_npc:
 func _start_dialog_cutscene(npc: Node3D) -> void:
 	if _player:
 		_player.set_touch_dir(Vector2.ZERO)
+		if _player.has_method("set_input_locked"):
+			_player.set_input_locked(true)
 	_sync_joystick_visibility()
 	if _cams == null or not _cams.has_method("begin_cutscene") or npc == null:
 		_dialog.visible = true
 		return
 
 	var cam: Camera3D = _cams.begin_cutscene()
-	var look_at := npc.global_position + Vector3(0, 28, 0)
+	var head_y := 48.0
+	if npc.has_method("head_world_y"):
+		head_y = float(npc.call("head_world_y")) - npc.global_position.y
+	var look_mid := npc.global_position + Vector3(0, head_y * 0.72, 0)
+	var look_face := npc.global_position + Vector3(0, head_y * 0.92, 0)
 	var from_p := _player.global_position
-	var to_npc := look_at - from_p
+	var to_npc := look_mid - from_p
 	to_npc.y = 0.0
 	if to_npc.length_squared() < 0.01:
 		to_npc = Vector3(0, 0, 1)
 	else:
 		to_npc = to_npc.normalized()
 	var side := to_npc.cross(Vector3.UP).normalized()
-	# Плечо / 3/4: чуть сбоку и сзади линии взгляд→NPC.
-	var target_pos := look_at - to_npc * 58.0 + side * 40.0 + Vector3(0, 16, 0)
+
+	# 1) Средний план сбоку, 2) медленное приближение к лицу говорящего.
+	var mid_pos := look_mid - to_npc * 72.0 + side * 38.0 + Vector3(0, 14, 0)
+	var close_pos := look_face - to_npc * 34.0 + side * 18.0 + Vector3(0, 4, 0)
 
 	var start_xform := cam.global_transform
-	cam.global_position = target_pos
-	cam.look_at(look_at, Vector3.UP)
-	var end_xform := cam.global_transform
+	var start_fov := cam.fov
+
+	cam.global_position = mid_pos
+	cam.look_at(look_mid, Vector3.UP)
+	var mid_xform := cam.global_transform
+
+	cam.global_position = close_pos
+	cam.look_at(look_face, Vector3.UP)
+	var close_xform := cam.global_transform
+
 	cam.global_transform = start_xform
+	cam.fov = start_fov
 
 	if _cutscene_tween and _cutscene_tween.is_valid():
 		_cutscene_tween.kill()
 	_cutscene_tween = create_tween()
-	_cutscene_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	_cutscene_tween.tween_property(cam, "global_transform", end_xform, CUTSCENE_DURATION)
+	_cutscene_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_cutscene_tween.tween_property(cam, "global_transform", mid_xform, CUTSCENE_APPROACH)
+	_cutscene_tween.parallel().tween_property(cam, "fov", 48.0, CUTSCENE_APPROACH)
+	_cutscene_tween.tween_property(cam, "global_transform", close_xform, CUTSCENE_CLOSEUP)
+	_cutscene_tween.parallel().tween_property(cam, "fov", 38.0, CUTSCENE_CLOSEUP)
+	_cutscene_tween.tween_interval(CUTSCENE_HOLD)
 	_cutscene_tween.tween_callback(_reveal_dialog)
+
+	# Говорящий слегка кивает головой во время катсцены.
+	_cutscene_speaker = npc
+	if npc.has_method("set_talk_bob"):
+		npc.set_talk_bob(true)
 
 
 func _reveal_dialog() -> void:
 	_dialog.visible = true
+	_dialog.modulate.a = 0.0
+	var panel := _dialog.get_node_or_null("Panel") as Control
+	var target_y := 0.0
+	if panel:
+		target_y = panel.position.y
+		panel.position.y = target_y + 36.0
+	var tw := create_tween()
+	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tw.tween_property(_dialog, "modulate:a", 1.0, 0.35)
+	if panel:
+		tw.parallel().tween_property(panel, "position:y", target_y, 0.4)
 	_sync_joystick_visibility()
 
 
@@ -637,9 +677,20 @@ func _end_dialog_cutscene() -> void:
 	if _cutscene_tween and _cutscene_tween.is_valid():
 		_cutscene_tween.kill()
 	_cutscene_tween = null
+	if _cutscene_speaker and _cutscene_speaker.has_method("set_talk_bob"):
+		_cutscene_speaker.set_talk_bob(false)
+	_cutscene_speaker = null
 	_dialog.visible = false
+	_dialog.modulate.a = 1.0
 	if _cams and _cams.has_method("end_cutscene"):
 		_cams.end_cutscene()
+	# Вернём fov игровой камеры.
+	if _cams and _cams.has_method("current_camera"):
+		var cam: Camera3D = _cams.current_camera()
+		if cam:
+			cam.fov = 55.0
+	if _player and _player.has_method("set_input_locked"):
+		_player.set_input_locked(false)
 	_sync_joystick_visibility()
 
 

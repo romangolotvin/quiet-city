@@ -1,6 +1,6 @@
 extends Node3D
 
-## Житель квартала (капсула + Label3D).
+## Житель квартала: человечек + idle + пульсирующая точка дела.
 
 var npc_id := ""
 var case_id := ""
@@ -10,6 +10,10 @@ var talk_radius := 110.0
 
 var _marker: MeshInstance3D
 var _label: Label3D
+var _human: Node3D
+var _head_y := 54.0
+var _talk_bob := false
+var _marker_base_y := 70.0
 
 
 func setup(data: Dictionary) -> void:
@@ -32,27 +36,18 @@ func contains_xz(world_pos: Vector3) -> bool:
 	return a.distance_to(b) <= talk_radius
 
 
-func _build_visual() -> void:
-	var body := MeshInstance3D.new()
-	var capsule := CapsuleMesh.new()
-	capsule.radius = 11.0
-	capsule.height = 34.0
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = _clothes_color()
-	capsule.material = mat
-	body.mesh = capsule
-	body.position = Vector3(0, 17, 0)
-	add_child(body)
+func head_world_y() -> float:
+	return global_position.y + _head_y
 
-	var head := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 8.0
-	var skin := StandardMaterial3D.new()
-	skin.albedo_color = Color(0.86, 0.72, 0.58)
-	sphere.material = skin
-	head.mesh = sphere
-	head.position = Vector3(0, 32, 0)
-	add_child(head)
+
+func set_talk_bob(enabled: bool) -> void:
+	_talk_bob = enabled
+
+
+func _build_visual() -> void:
+	_human = Humanoid3D.build(self, look, 1.0)
+	_head_y = Humanoid3D.head_height(_human)
+	_marker_base_y = _head_y + 16.0
 
 	_label = Label3D.new()
 	_label.text = display_name
@@ -61,20 +56,20 @@ func _build_visual() -> void:
 	_label.outline_modulate = Color(1, 0.97, 0.9)
 	_label.outline_size = 8
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-	_label.position = Vector3(0, 48, 0)
+	_label.position = Vector3(0, _head_y + 10.0, 0)
 	add_child(_label)
 
 	_marker = MeshInstance3D.new()
 	var mark_mesh := SphereMesh.new()
-	mark_mesh.radius = 6.0
+	mark_mesh.radius = 5.5
 	var mark_mat := StandardMaterial3D.new()
 	mark_mat.albedo_color = Color(0.98, 0.82, 0.28)
 	mark_mat.emission_enabled = true
 	mark_mat.emission = Color(0.98, 0.82, 0.28)
-	mark_mat.emission_energy_multiplier = 0.6
+	mark_mat.emission_energy_multiplier = 0.7
 	mark_mesh.material = mark_mat
 	_marker.mesh = mark_mesh
-	_marker.position = Vector3(0, 52, 0)
+	_marker.position = Vector3(0, _marker_base_y, 0)
 	add_child(_marker)
 
 	var area := Area3D.new()
@@ -92,36 +87,32 @@ func _build_visual() -> void:
 	add_child(area)
 
 
-func _clothes_color() -> Color:
-	match look:
-		"kids":
-			return Color(0.35, 0.55, 0.4)
-		"girl":
-			return Color(0.55, 0.35, 0.42)
-		"baker":
-			return Color(0.85, 0.82, 0.75)
-		_:
-			return Color(0.3, 0.34, 0.42)
-
-
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	if _human:
+		Humanoid3D.animate(_human, delta, 0.0, _talk_bob)
 	if _marker == null:
 		return
 	var closed := GameState.is_case_closed(case_id)
+	var t := Time.get_ticks_msec() * 0.001
 	if can_talk() and GameState.active_case_id != case_id:
 		_marker.visible = true
-		var bob := sin(Time.get_ticks_msec() * 0.008) * 3.0
-		_marker.position.y = 52.0 + bob
+		var bob := sin(t * 2.4) * 4.0
+		var pulse := 1.0 + sin(t * 3.2) * 0.18
+		_marker.position.y = _marker_base_y + bob
+		_marker.scale = Vector3(pulse, pulse, pulse)
 		var mat := (_marker.mesh as SphereMesh).material as StandardMaterial3D
 		if mat:
 			mat.albedo_color = Color(0.98, 0.82, 0.28)
 			mat.emission = Color(0.98, 0.82, 0.28)
+			mat.emission_energy_multiplier = 0.55 + sin(t * 3.2) * 0.35
 	elif closed:
 		_marker.visible = true
-		_marker.position.y = 52.0
+		_marker.position.y = _marker_base_y
+		_marker.scale = Vector3.ONE
 		var mat2 := (_marker.mesh as SphereMesh).material as StandardMaterial3D
 		if mat2:
 			mat2.albedo_color = Color(0.45, 0.8, 0.45)
 			mat2.emission = Color(0.45, 0.8, 0.45)
+			mat2.emission_energy_multiplier = 0.45
 	else:
 		_marker.visible = false

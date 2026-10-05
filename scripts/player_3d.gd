@@ -14,9 +14,10 @@ var yaw := 0.0
 var _touch_dir := Vector2.ZERO
 var _camera_mode := 0
 var _move_basis: Basis = Basis.IDENTITY
-var _mesh: MeshInstance3D
+var _mesh: Node3D
 var _input_locked := false
 var _look_yaw_delta := 0.0
+var _talk_bob := false
 
 
 func _ready() -> void:
@@ -24,27 +25,11 @@ func _ready() -> void:
 
 
 func _build_mesh() -> void:
-	_mesh = MeshInstance3D.new()
-	_mesh.name = "BodyMesh"
-	var capsule := CapsuleMesh.new()
-	capsule.radius = 12.0
-	capsule.height = 36.0
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color(0.25, 0.45, 0.75)
-	capsule.material = mat
-	_mesh.mesh = capsule
-	_mesh.position = Vector3(0, 18, 0)
-	add_child(_mesh)
+	_mesh = Humanoid3D.build(self, "man", 1.05)
 
-	var head := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radius = 9.0
-	var skin := StandardMaterial3D.new()
-	skin.albedo_color = Color(0.86, 0.72, 0.58)
-	sphere.material = skin
-	head.mesh = sphere
-	head.position = Vector3(0, 34, 0)
-	_mesh.add_child(head)
+
+func set_talk_bob(enabled: bool) -> void:
+	_talk_bob = enabled
 
 
 func set_touch_dir(dir: Vector2) -> void:
@@ -88,6 +73,8 @@ func _physics_process(delta: float) -> void:
 		_look_yaw_delta = 0.0
 		move_and_slide()
 		global_position.y = 0.0
+		if _mesh:
+			Humanoid3D.animate(_mesh, delta, 0.0, _talk_bob)
 		return
 
 	# Свайп взгляда (накопленный за кадр).
@@ -130,13 +117,11 @@ func _physics_process(delta: float) -> void:
 		if analog and dir2 != Vector2.ZERO:
 			strength = clampf(dir2.length(), 0.0, 1.0)
 		if dir2 != Vector2.ZERO:
-			# Поворот: полный стик вбок = TURN_SPEED рад/с (не мгновенный разворот).
 			yaw -= dir2.x * TURN_SPEED * strength * delta
 		var forward := facing_flat()
 		facing = forward
 		var forward_axis := -dir2.y if dir2 != Vector2.ZERO else 0.0
 		if not analog and dir2 != Vector2.ZERO:
-			# Клавиатура: W/S отдельно от силы стика.
 			forward_axis = 0.0
 			if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
 				forward_axis -= 1.0
@@ -157,3 +142,7 @@ func _physics_process(delta: float) -> void:
 	rotation.y = yaw
 	move_and_slide()
 	global_position.y = 0.0
+
+	var walk_amt := clampf(Vector2(velocity.x, velocity.z).length() / SPEED, 0.0, 1.0)
+	if _mesh:
+		Humanoid3D.animate(_mesh, delta, walk_amt, _talk_bob)

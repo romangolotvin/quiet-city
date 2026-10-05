@@ -1,6 +1,6 @@
 {
-  "version": "1.4.2",
-  "notes": "Медленный поворот в 1/3 лице; иконка аппарата только за компьютером на базе.",
+  "version": "1.5.0",
+  "notes": "Богаче квартал, человечки вместо овалов, idle/шаг, ambient фонтана и деревьев, плавная катсцена и fade UI.",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }

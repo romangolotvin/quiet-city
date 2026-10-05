@@ -4,10 +4,10 @@ extends Node3D
 
 signal mode_changed(mode: int)
 
-const TOP_HEIGHT := 720.0
-const THIRD_DIST := 140.0
-const THIRD_HEIGHT := 70.0
-const FIRST_HEIGHT := 30.0
+const TOP_HEIGHT := 780.0
+const THIRD_DIST := 150.0
+const THIRD_HEIGHT := 78.0
+const FIRST_HEIGHT := 46.0
 
 var _player: Node3D
 var _cam_top: Camera3D
