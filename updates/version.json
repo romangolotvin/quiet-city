@@ -1,6 +1,6 @@
 {
-  "version": "1.2.3",
-  "notes": "Голосование после любых 3 волн; аппарат открывается значком планшета в углу.",
+  "version": "1.3.0",
+  "notes": "Квартал в low-poly 3D: камеры сверху / 3 лицо / 1 лицо (кнопка и C). Меню и концовки — 2D.",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }

@@ -61,7 +61,22 @@ const PLACES := {
 		"idle": "Мост через яркую воду. По камням никто не идёт.",
 		"art": "embankment",
 	},
+	"base": {
+		"name": "Твоя база",
+		"pos": Vector2(768, 512),
+		"idle": "Твой дом и компьютер для ловли волн.",
+		"art": "base",
+	},
 }
+
+
+## MapLayout XY (вид сверху) → мир 3D XZ.
+static func to_3d(pos: Vector2, y: float = 0.0) -> Vector3:
+	return Vector3(pos.x, y, pos.y)
+
+
+static func from_3d(pos: Vector3) -> Vector2:
+	return Vector2(pos.x, pos.z)
 
 
 static func ids() -> Array[String]:
