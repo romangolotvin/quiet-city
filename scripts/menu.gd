@@ -85,7 +85,7 @@ func _on_tap(screen_pos: Vector2) -> void:
 func _run(action: String, arg: String) -> void:
 	match action:
 		"play":
-			_show_difficulties()
+			get_tree().change_scene_to_file("res://scenes/district.tscn")
 		"settings":
 			_show_settings()
 		"diff":
@@ -169,7 +169,7 @@ func _apply_safe_layout() -> void:
 
 func _show_title() -> void:
 	_screen = "title"
-	_subtitle.text = "Горизонтальный режим. Версия %s." % UpdateService.current_version()
+	_subtitle.text = "Жилой квартал. Версия %s." % UpdateService.current_version()
 	_clear_hits()
 	_add_button("Играть", PLAY, "play")
 	_add_button("Настройки", ACCENT, "settings")

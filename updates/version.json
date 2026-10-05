@@ -1,6 +1,6 @@
 {
-  "version": "1.1.7",
-  "notes": "Мягче музыка, сложнее дела, граница города, правильные окончания.",
+  "version": "1.2.0",
+  "notes": "Жилой квартал: гуляй, бери дела у жителей, лови волны аппаратом.",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }
