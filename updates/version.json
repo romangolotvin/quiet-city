@@ -1,6 +1,6 @@
 {
-  "version": "2.0.3",
-  "notes": "Исправлены типы need/need2 в city_map_3d (Parser Error).",
+  "version": "2.0.4",
+  "notes": "Убран stray digit в city_map_3d — скрипт снова резолвится из district.gd.",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }

@@ -387,7 +387,7 @@ func _inset_from_roads(center: Vector3, half_x: float, half_z: float) -> Vector3
 	var p := center
 	for road in ROAD_AXES:
 		if p.x >= road:
-6			var need: float = road + CLEAR_ZONE + half_x
+			var need: float = road + CLEAR_ZONE + half_x
 			if p.x < need:
 				p.x = need
 		else:
