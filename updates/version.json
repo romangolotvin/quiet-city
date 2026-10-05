@@ -1,6 +1,6 @@
 {
-  "version": "2.0.1",
-  "notes": "Бодрее музыка, дома не на дорогах, pitch камеры, фикс стрейфа джойстика, понятная стрелка уличных ситуаций.",
+  "version": "2.0.2",
+  "notes": "Исправлена ошибка парсера city_map_3d (случайный символ в скрипте карты).",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }

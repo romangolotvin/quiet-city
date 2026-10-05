@@ -1,7 +1,7 @@
 class_name UpdateConfig
 
 ## Локальная версия этой сборки. Поднимай при каждом релизе.
-const APP_VERSION := "2.0.1"
+const APP_VERSION := "2.0.2"
 
 ## Файл version.json в интернете. Замени на свой URL (GitHub raw / сайт).
 ## Формат: { "version": "1.1.1", "notes": "...", "windows": "https://...", "android": "https://..." }
