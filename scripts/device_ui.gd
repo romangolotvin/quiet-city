@@ -161,7 +161,8 @@ func _refresh() -> void:
 		return
 
 	var events: Array = _case.get("events", [])
-	_hint.text = "Поймано %d из %d. %s" % [GameState.caught_count(), events.size(), _case.get("ask", "")]
+	var need := GameState.VOTE_READY_COUNT
+	_hint.text = "Поймано %d (достаточно %d для вывода). %s" % [GameState.caught_count(), need, _case.get("ask", "")]
 
 	var any := false
 	for event in events:
@@ -190,7 +191,7 @@ func _refresh() -> void:
 			_suspects.add_child(row)
 	else:
 		var wait := Label.new()
-		wait.text = "Когда поймаешь все волны, здесь появятся варианты ответа."
+		wait.text = "Когда поймаешь любые %d волны, здесь появятся варианты ответа." % need
 		wait.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		wait.add_theme_font_size_override("font_size", 17)
 		wait.add_theme_color_override("font_color", Color(0.4, 0.3, 0.22))

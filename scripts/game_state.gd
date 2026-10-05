@@ -60,8 +60,12 @@ func case_event_count() -> int:
 	return current_case().get("events", []).size()
 
 
+## Сколько любых пойманных волн достаточно, чтобы открыть голосование.
+const VOTE_READY_COUNT := 3
+
+
 func is_case_ready() -> bool:
-	return has_active_case() and caught_count() >= case_event_count()
+	return has_active_case() and caught_count() >= VOTE_READY_COUNT
 
 
 func start_ending(ok: bool, suspect_id: String) -> void:

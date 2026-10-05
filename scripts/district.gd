@@ -7,6 +7,7 @@ const EndingScene := preload("res://scenes/ending.tscn")
 const PlayerScript := preload("res://scripts/player.gd")
 const NpcScript := preload("res://scripts/npc_resident.gd")
 const DeviceScript := preload("res://scripts/device_ui.gd")
+const TabletIconScript := preload("res://scripts/tablet_icon.gd")
 const MapPlaceScript := preload("res://scripts/map_place.gd")
 const CityMapScript := preload("res://scripts/city_map.gd")
 const JoystickScript := preload("res://scripts/virtual_joystick.gd")
@@ -23,7 +24,7 @@ var _ui: CanvasLayer
 var _hint: Label
 var _toast: Label
 var _menu_btn: Label
-var _device_btn: Label
+var _device_btn: Control
 var _device: Control
 var _dialog: Control
 var _dialog_title: Label
@@ -171,13 +172,8 @@ func _build_ui() -> void:
 	_menu_btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ui.add_child(_menu_btn)
 
-	_device_btn = Label.new()
-	_device_btn.text = "Аппарат"
-	_device_btn.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_device_btn.add_theme_font_size_override("font_size", 24)
-	_device_btn.add_theme_color_override("font_color", INK)
-	_device_btn.add_theme_color_override("font_outline_color", Color(1, 0.97, 0.9, 0.9))
-	_device_btn.add_theme_constant_override("outline_size", 4)
+	_device_btn = Control.new()
+	_device_btn.set_script(TabletIconScript)
 	_device_btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ui.add_child(_device_btn)
 
@@ -466,7 +462,7 @@ func _try_catch_at(place_id: String) -> void:
 		_spawn_wave(MapLayout.pos_of(place_id), SoundCatalog.color(kind))
 		_show_toast("Поймано: %s · %s" % [event["time"], SoundCatalog.wave_name(kind)])
 		if GameState.is_case_ready():
-			_show_toast("Все волны пойманы. Открой аппарат и сделай вывод.")
+			_show_toast("Улик достаточно. Открой аппарат и сделай вывод.")
 		return
 	_show_toast("Здесь больше нечего ловить для текущего дела.")
 
@@ -501,7 +497,12 @@ func _refresh_hint() -> void:
 		return
 	if GameState.has_active_case():
 		var c := GameState.current_case()
-		_hint.text = "%s · %d/%d волн" % [c.get("title", "Дело"), GameState.caught_count(), GameState.case_event_count()]
+		var caught := GameState.caught_count()
+		var need := GameState.VOTE_READY_COUNT
+		if caught >= need:
+			_hint.text = "%s · %d волн · можно голосовать" % [c.get("title", "Дело"), caught]
+		else:
+			_hint.text = "%s · %d/%d волн для вывода" % [c.get("title", "Дело"), caught, need]
 	else:
 		_hint.text = "Квартал · подойди к жителю с жёлтой точкой"
 
@@ -525,8 +526,14 @@ func _apply_safe_ui() -> void:
 	_hint.size = Vector2(520, 40)
 	_menu_btn.position = Vector2(get_viewport_rect().size.x - 150 - right_pad, m.position.y)
 	_menu_btn.size = Vector2(130, 40)
-	_device_btn.position = Vector2(get_viewport_rect().size.x - 150 - right_pad, m.position.y + 44)
-	_device_btn.size = Vector2(130, 40)
+	# Планшет в правом нижнем углу — как раньше книга.
+	var tablet_size := Vector2(100.0, 124.0)
+	var bottom_pad := get_viewport_rect().size.y - m.end.y
+	_device_btn.position = Vector2(
+		get_viewport_rect().size.x - tablet_size.x - 12.0 - right_pad,
+		get_viewport_rect().size.y - tablet_size.y - 12.0 - bottom_pad
+	)
+	_device_btn.size = tablet_size
 	_toast.position = Vector2(m.position.x + 24, m.position.y + 90)
 	_toast.size = Vector2(m.size.x - 48, 70)
 	if _joystick:

@@ -1,6 +1,6 @@
 {
-  "version": "1.2.2",
-  "notes": "Крупный виртуальный джойстик для ходьбы на телефоне.",
+  "version": "1.2.3",
+  "notes": "Голосование после любых 3 волн; аппарат открывается значком планшета в углу.",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }
