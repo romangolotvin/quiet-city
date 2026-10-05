@@ -341,18 +341,20 @@ func _add_cylinder_node(pos: Vector3, radius: float, height: float, color: Color
 
 
 func _on_road(point: Vector3) -> bool:
+	# Проезжая + тротуары + перекрёстки — дома сюда не ставим.
+	const ROAD_HALF := 130.0
 	for x in [-768.0, -256.0, 256.0, 768.0]:
-		if absf(point.x - x) < 95.0:
+		if absf(point.x - x) < ROAD_HALF:
 			return true
 	for z in [-768.0, -256.0, 256.0, 768.0]:
-		if absf(point.z - z) < 95.0:
+		if absf(point.z - z) < ROAD_HALF:
 			return true
 	return false
 
 
 func _near_place(point: Vector3) -> bool:
 	for id in MapLayout.ids():
-		if point.distance_to(MapLayout.to_3d(MapLayout.pos_of(id))) < 170.0:
+		if point.distance_to(MapLayout.to_3d(MapLayout.pos_of(id))) < 200.0:
 			return true
 	return false
 

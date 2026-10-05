@@ -112,29 +112,33 @@ func _physics_process(delta: float) -> void:
 			velocity.x = 0.0
 			velocity.z = 0.0
 	else:
-		# 1 / 3 лицо: X — медленный поворот, Y — вперёд/назад по yaw.
+		# 1 / 3 лицо: ходьба вперёд/назад + стрейф; look только свайп / ПКМ.
 		var strength := 1.0
 		if analog and dir2 != Vector2.ZERO:
 			strength = clampf(dir2.length(), 0.0, 1.0)
-		if dir2 != Vector2.ZERO:
-			yaw -= dir2.x * TURN_SPEED * strength * delta
 		var forward := facing_flat()
 		facing = forward
-		var forward_axis := -dir2.y if dir2 != Vector2.ZERO else 0.0
-		if not analog and dir2 != Vector2.ZERO:
-			forward_axis = 0.0
+		var right := Vector3(forward.z, 0.0, -forward.x)
+		var forward_axis := 0.0
+		var strafe_axis := 0.0
+		if analog:
+			# Джойстик: Y — вперёд, X — стрейф (без поворота yaw).
+			forward_axis = -dir2.y
+			strafe_axis = dir2.x
+		else:
 			if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
 				forward_axis -= 1.0
 			if Input.is_key_pressed(KEY_S) or Input.is_key_pressed(KEY_DOWN):
 				forward_axis += 1.0
-		if absf(forward_axis) > 0.001:
-			move = forward * (-forward_axis)
-			if analog:
-				velocity.x = move.x * SPEED * strength
-				velocity.z = move.z * SPEED * strength
-			else:
-				velocity.x = move.normalized().x * SPEED
-				velocity.z = move.normalized().z * SPEED
+			if Input.is_key_pressed(KEY_A) or Input.is_key_pressed(KEY_LEFT):
+				strafe_axis -= 1.0
+			if Input.is_key_pressed(KEY_D) or Input.is_key_pressed(KEY_RIGHT):
+				strafe_axis += 1.0
+		move = forward * (-forward_axis) + right * strafe_axis
+		if move.length_squared() > 0.0001:
+			move = move.normalized()
+			velocity.x = move.x * SPEED * strength
+			velocity.z = move.z * SPEED * strength
 		else:
 			velocity.x = 0.0
 			velocity.z = 0.0

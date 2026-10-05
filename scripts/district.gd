@@ -13,12 +13,15 @@ const CityMapScript := preload("res://scripts/city_map_3d.gd")
 const JoystickScript := preload("res://scripts/virtual_joystick.gd")
 const CameraScript := preload("res://scripts/camera_controller.gd")
 const WaveScript := preload("res://scripts/wave_3d.gd")
+const ArrowScript := preload("res://scripts/offscreen_arrow_3d.gd")
 
 const INK := Color(0.16, 0.11, 0.08)
 const BASE_RADIUS := 130.0
 const CUTSCENE_APPROACH := 1.15
 const CUTSCENE_CLOSEUP := 1.35
 const CUTSCENE_HOLD := 0.25
+const LOOK_SENS_MOUSE := 0.0035
+const LOOK_SENS_TOUCH := 0.0022
 
 var _player: CharacterBody3D
 var _cams: Node3D
@@ -40,10 +43,12 @@ var _dialog_hits: Array[Dictionary] = []
 var _toast_tween: Tween
 var _cutscene_tween: Tween
 var _joystick: Control
+var _nav_arrow: Control
 var _pointer_down := false
 var _pointer_start := Vector2.ZERO
 var _did_drag := false
 var _touch_move := false
+var _rmb_look := false
 var _bounds := Rect2()
 var _talk_npc: Node3D = null
 var _cutscene_speaker: Node3D = null
@@ -159,6 +164,20 @@ func _npc_data() -> Array[Dictionary]:
 			"look": "baker",
 			"pos": MapLayout.pos_of("bakery") + Vector2(150, 130),
 		},
+		{
+			"id": "npc_helper",
+			"case_id": "stolen_pie",
+			"name": "Помощник",
+			"look": "man",
+			"pos": MapLayout.pos_of("alley") + Vector2(120, 90),
+		},
+		{
+			"id": "npc_key_owner",
+			"case_id": "missing_key",
+			"name": "Жилец",
+			"look": "man",
+			"pos": MapLayout.pos_of("gate") + Vector2(-130, 140),
+		},
 	]
 
 
@@ -217,19 +236,32 @@ func _build_ui() -> void:
 	_ui.add_child(_joystick)
 	_joystick.direction_changed.connect(_on_joystick_dir)
 
+	_nav_arrow = Control.new()
+	_nav_arrow.set_script(ArrowScript)
+	_ui.add_child(_nav_arrow)
+
 	_device = Control.new()
 	_device.set_script(DeviceScript)
 	_ui.add_child(_device)
 	_device.accused.connect(_on_accused)
-	_device.closed.connect(_refresh_hint)
+	_device.closed.connect(_on_device_closed)
 
 	_computer = Control.new()
 	_computer.set_script(ComputerScript)
 	_ui.add_child(_computer)
 	_computer.caught.connect(_on_computer_caught)
 	_computer.closed.connect(_on_computer_closed)
+	if _computer.has_signal("open_verdict"):
+		_computer.open_verdict.connect(_on_computer_open_verdict)
 
 	_build_dialog()
+	_sync_tablet_visibility()
+
+
+func _on_device_closed() -> void:
+	_refresh_hint()
+	_sync_tablet_visibility()
+	_sync_joystick_visibility()
 
 
 func _build_dialog() -> void:
@@ -272,6 +304,8 @@ func _process(_delta: float) -> void:
 	_clamp_player()
 	_refresh_hint()
 	_sync_joystick_visibility()
+	_sync_tablet_visibility()
+	_update_nav_arrow()
 
 
 func _clamp_player() -> void:
@@ -294,6 +328,49 @@ func _unhandled_input(event: InputEvent) -> void:
 		_mark_handled()
 	elif event is InputEventScreenDrag:
 		_handle_drag(event)
+		_mark_handled()
+	elif event is InputEventMouseButton:
+		_handle_mouse_button(event)
+		_mark_handled()
+	elif event is InputEventMouseMotion:
+		_handle_mouse_motion(event)
+
+
+func _handle_mouse_button(event: InputEventMouseButton) -> void:
+	if event.button_index == MOUSE_BUTTON_RIGHT:
+		_rmb_look = event.pressed
+		return
+	if event.button_index != MOUSE_BUTTON_LEFT:
+		return
+	if event.pressed:
+		_pointer_down = true
+		_pointer_start = event.position
+		_did_drag = false
+		_touch_move = false
+	else:
+		if not _pointer_down:
+			return
+		_pointer_down = false
+		if _did_drag and _touch_move:
+			_player.set_touch_dir(Vector2.ZERO)
+			return
+		_on_tap(event.position)
+
+
+func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
+	if not _rmb_look:
+		return
+	var mode := AppSettings.camera_mode
+	if mode != AppSettings.CAMERA_FIRST and mode != AppSettings.CAMERA_THIRD:
+		return
+	if _dialog != null and _dialog.visible:
+		return
+	if _device != null and _device.visible:
+		return
+	if _computer != null and _computer.visible:
+		return
+	if _player and _player.has_method("add_look_yaw"):
+		_player.add_look_yaw(event.relative.x * LOOK_SENS_MOUSE)
 		_mark_handled()
 
 
@@ -379,7 +456,7 @@ func _handle_drag(event: InputEventScreenDrag) -> void:
 		var mode := AppSettings.camera_mode
 		if mode == AppSettings.CAMERA_FIRST or mode == AppSettings.CAMERA_THIRD:
 			if _player and _player.has_method("add_look_yaw"):
-				_player.add_look_yaw(event.relative.x * 0.0022)
+				_player.add_look_yaw(event.relative.x * LOOK_SENS_TOUCH)
 		else:
 			_touch_move = true
 			var dir := event.relative
@@ -389,6 +466,20 @@ func _handle_drag(event: InputEventScreenDrag) -> void:
 
 func _on_tap(screen_pos: Vector2) -> void:
 	var grow := UiFit.touch_grow()
+	# Планшет всегда раньше компьютера — иначе клик съедается UI базы.
+	if _device_btn != null and _device_btn.visible \
+			and _device_btn.get_global_rect().grow(grow).has_point(screen_pos):
+		if _computer != null and _computer.visible:
+			_computer.close_computer()
+		_device.open_device()
+		_sync_joystick_visibility()
+		return
+	if _menu_btn.get_global_rect().grow(grow).has_point(screen_pos):
+		get_tree().change_scene_to_file("res://scenes/menu.tscn")
+		return
+	if _cam_btn.get_global_rect().grow(grow).has_point(screen_pos):
+		_cycle_camera()
+		return
 	if _device.visible:
 		_device.handle_tap(screen_pos)
 		return
@@ -399,15 +490,6 @@ func _on_tap(screen_pos: Vector2) -> void:
 		_handle_dialog_tap(screen_pos)
 		return
 	if _cams != null and _cams.has_method("is_cutscene") and _cams.is_cutscene():
-		return
-	if _menu_btn.get_global_rect().grow(grow).has_point(screen_pos):
-		get_tree().change_scene_to_file("res://scenes/menu.tscn")
-		return
-	if _cam_btn.get_global_rect().grow(grow).has_point(screen_pos):
-		_cycle_camera()
-		return
-	if _device_btn.visible and _device_btn.get_global_rect().grow(grow).has_point(screen_pos):
-		_device.open_device()
 		return
 
 	var hit := _raycast_world(screen_pos)
@@ -519,11 +601,51 @@ func _on_computer_closed() -> void:
 	_sync_joystick_visibility()
 
 
+func _on_computer_open_verdict() -> void:
+	if _computer != null and _computer.visible:
+		_computer.close_computer()
+	if _device:
+		_device.open_device()
+	_sync_joystick_visibility()
+
+
 func _sync_tablet_visibility() -> void:
 	if _device_btn == null:
 		return
-	# Аппарат только за компьютером на базе.
-	_device_btn.visible = _computer != null and _computer.visible
+	# Планшет при активном деле (и когда открыт компьютер / сам планшет).
+	var want := GameState.has_active_case() \
+		or (_computer != null and _computer.visible) \
+		or (_device != null and _device.visible)
+	_device_btn.visible = want
+
+
+func _update_nav_arrow() -> void:
+	if _nav_arrow == null or not _nav_arrow.has_method("set_target_3d"):
+		return
+	if (_dialog != null and _dialog.visible) \
+			or (_device != null and _device.visible) \
+			or (_computer != null and _computer.visible):
+		_nav_arrow.clear_target()
+		return
+	if GameState.has_active_case() and not GameState.is_case_ready():
+		for place in _places:
+			if str(place.place_id) == "base":
+				_nav_arrow.set_target_3d(place, "база")
+				return
+	var best: Node3D = null
+	var best_d := 999999.0
+	for npc in _npcs:
+		if GameState.has_active_case():
+			break
+		if npc.has_method("can_talk") and npc.can_talk():
+			var d: float = _xz_distance(npc.global_position, _player.global_position)
+			if d < best_d:
+				best_d = d
+				best = npc
+	if best:
+		_nav_arrow.set_target_3d(best, "дело")
+	else:
+		_nav_arrow.clear_target()
 
 
 func _on_computer_caught(event_id: String) -> void:

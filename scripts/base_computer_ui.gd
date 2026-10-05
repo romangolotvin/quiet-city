@@ -4,6 +4,7 @@ extends Control
 
 signal closed
 signal caught(event_id: String)
+signal open_verdict
 
 const INK := Color(0.16, 0.11, 0.08)
 const PAPER := Color(0.98, 0.94, 0.86)
@@ -60,6 +61,8 @@ func handle_tap(screen_pos: Vector2) -> bool:
 			elif action == "catch":
 				caught.emit(str(hit["arg"]))
 				_refresh()
+			elif action == "verdict":
+				open_verdict.emit()
 			return true
 	return true
 
@@ -142,7 +145,8 @@ func _refresh() -> void:
 		_add_row(caption, Color(0.72, 0.88, 0.98), "catch", eid)
 
 	if GameState.is_case_ready():
-		_hint.text = "Улик достаточно. Значок аппарата справа — сделай вывод."
+		_hint.text = "Улик достаточно. Открой аппарат справа или кнопку ниже."
+		_add_row("Открыть аппарат · вердикт", Color(0.95, 0.82, 0.45), "verdict", "")
 	elif not any_left:
 		_hint.text = "Все доступные волны этого дела уже пойманы."
 	_add_row("Закрыть", Color(0.86, 0.93, 0.98), "close", "")

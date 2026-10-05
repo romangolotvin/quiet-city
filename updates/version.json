@@ -1,6 +1,6 @@
 {
-  "version": "1.5.0",
-  "notes": "Богаче квартал, человечки вместо овалов, idle/шаг, ambient фонтана и деревьев, плавная катсцена и fade UI.",
+  "version": "1.6.0",
+  "notes": "ПКМ look; фикс планшета на базе; 6 NPC; сейв; стрелка навигации; здания не на дорогах; планшет в городе.",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }
