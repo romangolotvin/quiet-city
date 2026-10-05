@@ -6,7 +6,7 @@ var npc_id := ""
 var case_id := ""
 var display_name := ""
 var look := "man"
-var talk_radius := 78.0
+var talk_radius := 96.0
 
 
 func setup(data: Dictionary) -> void:

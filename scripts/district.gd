@@ -9,6 +9,7 @@ const NpcScript := preload("res://scripts/npc_resident.gd")
 const DeviceScript := preload("res://scripts/device_ui.gd")
 const MapPlaceScript := preload("res://scripts/map_place.gd")
 const CityMapScript := preload("res://scripts/city_map.gd")
+const JoystickScript := preload("res://scripts/virtual_joystick.gd")
 
 const INK := Color(0.16, 0.11, 0.08)
 const CATCH_RADIUS := 96.0
@@ -29,6 +30,7 @@ var _dialog_title: Label
 var _dialog_body: Label
 var _dialog_hits: Array[Dictionary] = []
 var _toast_tween: Tween
+var _joystick: Control
 var _pointer_down := false
 var _pointer_start := Vector2.ZERO
 var _did_drag := false
@@ -103,34 +105,35 @@ func _build_world() -> void:
 
 
 func _npc_data() -> Array[Dictionary]:
+	# Жителей держим в стороне от точек ловли волн, чтобы легче кликать.
 	return [
 		{
 			"id": "npc_kids",
 			"case_id": "lost_ball",
 			"name": "Дети",
 			"look": "kids",
-			"pos": MapLayout.pos_of("yard") + Vector2(-70, 40),
+			"pos": MapLayout.pos_of("yard") + Vector2(-160, 120),
 		},
 		{
 			"id": "npc_girl",
 			"case_id": "stolen_bag",
 			"name": "Девушка",
 			"look": "girl",
-			"pos": MapLayout.pos_of("gate") + Vector2(60, -30),
+			"pos": MapLayout.pos_of("gate") + Vector2(150, -110),
 		},
 		{
 			"id": "npc_neighbor",
 			"case_id": "night_shout",
 			"name": "Сосед",
 			"look": "man",
-			"pos": MapLayout.pos_of("porch") + Vector2(-50, 50),
+			"pos": MapLayout.pos_of("porch") + Vector2(-140, 130),
 		},
 		{
 			"id": "npc_baker",
 			"case_id": "broken_window",
 			"name": "Пекарь",
 			"look": "baker",
-			"pos": MapLayout.pos_of("bakery") + Vector2(40, 70),
+			"pos": MapLayout.pos_of("bakery") + Vector2(150, 130),
 		},
 	]
 
@@ -183,6 +186,11 @@ func _build_ui() -> void:
 	_ui.add_child(_device)
 	_device.accused.connect(_on_accused)
 	_device.closed.connect(_refresh_hint)
+
+	_joystick = Control.new()
+	_joystick.set_script(JoystickScript)
+	_ui.add_child(_joystick)
+	_joystick.direction_changed.connect(_on_joystick_dir)
 
 	_build_dialog()
 
@@ -266,6 +274,15 @@ func _handle_touch(event: InputEventScreenTouch) -> void:
 	_on_tap(event.position)
 
 
+func _on_joystick_dir(dir: Vector2) -> void:
+	if _player:
+		_player.set_touch_dir(dir)
+
+
+func _joystick_blocks_touch() -> bool:
+	return _joystick != null and _joystick.visible
+
+
 func _handle_drag(event: InputEventScreenDrag) -> void:
 	if not _pointer_down:
 		return
@@ -274,6 +291,11 @@ func _handle_drag(event: InputEventScreenDrag) -> void:
 		_did_drag = true
 		return
 	if _dialog.visible:
+		return
+	# При экранном джойстике ходьба только с него — драги по миру не двигают игрока.
+	if _joystick_blocks_touch():
+		if event.position.distance_to(_pointer_start) > 22.0:
+			_did_drag = true
 		return
 	if event.position.distance_to(_pointer_start) > 22.0:
 		_did_drag = true
@@ -299,11 +321,17 @@ func _on_tap(screen_pos: Vector2) -> void:
 		return
 
 	var world := _screen_to_world(screen_pos)
-	# Сначала жители рядом с игроком
+	# Сначала житель рядом с игроком (приоритет над местом волны).
+	var nearest_npc: Node2D = null
+	var nearest_npc_d := 99999.0
 	for npc in _npcs:
-		if npc.contains(_player.global_position) or npc.contains(world):
-			_open_npc_dialog(npc)
-			return
+		var d: float = npc.global_position.distance_to(_player.global_position)
+		if d <= npc.talk_radius + 24.0 and d < nearest_npc_d:
+			nearest_npc = npc
+			nearest_npc_d = d
+	if nearest_npc and (nearest_npc.contains(world) or nearest_npc_d <= nearest_npc.talk_radius):
+		_open_npc_dialog(nearest_npc)
+		return
 	# Поймать волну у места
 	if GameState.has_active_case():
 		for place in _places:
@@ -485,6 +513,14 @@ func _apply_safe_ui() -> void:
 	_device_btn.size = Vector2(130, 40)
 	_toast.position = Vector2(m.position.x + 24, m.position.y + 90)
 	_toast.size = Vector2(m.size.x - 48, 70)
+	if _joystick:
+		_joystick.visible = DisplayServer.is_touchscreen_available()
+		var joy_size := Vector2(200, 200)
+		_joystick.size = joy_size
+		_joystick.position = Vector2(
+			m.position.x + 12.0,
+			m.end.y - joy_size.y - 10.0
+		)
 	if _dialog.visible:
 		_layout_dialog(not _dialog_hits.is_empty() and str(_dialog_hits[0].get("action", "")) != "close")
 
