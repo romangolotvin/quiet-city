@@ -1,6 +1,6 @@
 {
-  "version": "2.0.2",
-  "notes": "Исправлена ошибка парсера city_map_3d (случайный символ в скрипте карты).",
+  "version": "2.0.3",
+  "notes": "Исправлены типы need/need2 в city_map_3d (Parser Error).",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }

@@ -14,7 +14,7 @@ const WALL_B := Color(0.86, 0.78, 0.68)
 const WALL_C := Color(0.78, 0.82, 0.86)
 
 ## Оси проезжих (X и Z). Половина дороги ~55 + тротуар ~70 + половина дома ~70+.
-const ROAD_AXES := [-768.0, -256.0, 256.0, 768.0]
+const ROAD_AXES: Array[float] = [-768.0, -256.0, 256.0, 768.0]
 const CLEAR_ZONE := 195.0
 
 const ROOFS := [
@@ -387,20 +387,20 @@ func _inset_from_roads(center: Vector3, half_x: float, half_z: float) -> Vector3
 	var p := center
 	for road in ROAD_AXES:
 		if p.x >= road:
-			var need := road + CLEAR_ZONE + half_x
+6			var need: float = road + CLEAR_ZONE + half_x
 			if p.x < need:
 				p.x = need
 		else:
-			var need2 := road - CLEAR_ZONE - half_x
+			var need2: float = road - CLEAR_ZONE - half_x
 			if p.x > need2:
 				p.x = need2
 	for road in ROAD_AXES:
 		if p.z >= road:
-			var needz := road + CLEAR_ZONE + half_z
+			var needz: float = road + CLEAR_ZONE + half_z
 			if p.z < needz:
 				p.z = needz
 		else:
-			var needz2 := road - CLEAR_ZONE - half_z
+			var needz2: float = road - CLEAR_ZONE - half_z
 			if p.z > needz2:
 				p.z = needz2
 	return p
