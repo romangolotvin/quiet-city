@@ -128,8 +128,10 @@ func _refresh() -> void:
 		var caption := "%s · %s\n%s" % [event["time"], place_name, SoundCatalog.wave_name(kind)]
 		_add_row(caption, Color(0.72, 0.88, 0.98), "catch", eid)
 
-	if not any_left:
-		_hint.text = "Все доступные волны этого дела уже пойманы. Открой аппарат."
+	if GameState.is_case_ready():
+		_hint.text = "Улик достаточно. Значок аппарата справа — сделай вывод."
+	elif not any_left:
+		_hint.text = "Все доступные волны этого дела уже пойманы."
 	_add_row("Закрыть", Color(0.86, 0.93, 0.98), "close", "")
 
 

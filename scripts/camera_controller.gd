@@ -111,7 +111,11 @@ func _process(_delta: float) -> void:
 	if _player == null or _cutscene_active:
 		return
 	var p := _player.global_position
-	var face: Vector3 = _player.facing
+	var face := Vector3(0, 0, 1)
+	if _player.has_method("facing_flat"):
+		face = _player.facing_flat()
+	else:
+		face = _player.facing
 	if face.length_squared() < 0.0001:
 		face = Vector3(0, 0, 1)
 	else:
@@ -121,7 +125,7 @@ func _process(_delta: float) -> void:
 	_cam_top.global_position = p + Vector3(0, TOP_HEIGHT, 0)
 	_cam_top.look_at(p + Vector3(0, 0, 0.01), Vector3(0, 0, -1))
 
-	# 3 лицо
+	# 3 лицо — за спиной по yaw, без мгновенных рывков от стрейфа
 	var back := -face
 	_cam_third.global_position = p + Vector3(back.x, 0, back.z) * THIRD_DIST + Vector3(0, THIRD_HEIGHT, 0)
 	_cam_third.look_at(p + Vector3(0, 22, 0), Vector3.UP)

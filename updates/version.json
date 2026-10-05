@@ -1,6 +1,6 @@
 {
-  "version": "1.4.1",
-  "notes": "Исправлена ошибка парсера в квартале (тип переменной want).",
+  "version": "1.4.2",
+  "notes": "Медленный поворот в 1/3 лице; иконка аппарата только за компьютером на базе.",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }

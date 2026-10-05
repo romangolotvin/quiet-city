@@ -205,6 +205,7 @@ func _build_ui() -> void:
 	_device_btn = Control.new()
 	_device_btn.set_script(TabletIconScript)
 	_device_btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_device_btn.visible = false
 	_ui.add_child(_device_btn)
 
 	_joystick = Control.new()
@@ -222,7 +223,7 @@ func _build_ui() -> void:
 	_computer.set_script(ComputerScript)
 	_ui.add_child(_computer)
 	_computer.caught.connect(_on_computer_caught)
-	_computer.closed.connect(_refresh_hint)
+	_computer.closed.connect(_on_computer_closed)
 
 	_build_dialog()
 
@@ -370,10 +371,16 @@ func _handle_drag(event: InputEventScreenDrag) -> void:
 		return
 	if event.position.distance_to(_pointer_start) > 22.0:
 		_did_drag = true
-		_touch_move = true
-		var dir := event.relative
-		if dir.length() > 0.1:
-			_player.set_touch_dir(dir.normalized())
+		# В 1/3 лице свайп = медленный поворот камеры, не бег.
+		var mode := AppSettings.camera_mode
+		if mode == AppSettings.CAMERA_FIRST or mode == AppSettings.CAMERA_THIRD:
+			if _player and _player.has_method("add_look_yaw"):
+				_player.add_look_yaw(event.relative.x * 0.0022)
+		else:
+			_touch_move = true
+			var dir := event.relative
+			if dir.length() > 0.1:
+				_player.set_touch_dir(dir.normalized())
 
 
 func _on_tap(screen_pos: Vector2) -> void:
@@ -395,7 +402,7 @@ func _on_tap(screen_pos: Vector2) -> void:
 	if _cam_btn.get_global_rect().grow(grow).has_point(screen_pos):
 		_cycle_camera()
 		return
-	if _device_btn.get_global_rect().grow(grow).has_point(screen_pos):
+	if _device_btn.visible and _device_btn.get_global_rect().grow(grow).has_point(screen_pos):
 		_device.open_device()
 		return
 
@@ -498,7 +505,21 @@ func _open_base_computer() -> void:
 	if _computer == null:
 		return
 	_computer.open_computer()
+	_sync_tablet_visibility()
 	_sync_joystick_visibility()
+
+
+func _on_computer_closed() -> void:
+	_sync_tablet_visibility()
+	_refresh_hint()
+	_sync_joystick_visibility()
+
+
+func _sync_tablet_visibility() -> void:
+	if _device_btn == null:
+		return
+	# Аппарат только за компьютером на базе.
+	_device_btn.visible = _computer != null and _computer.visible
 
 
 func _on_computer_caught(event_id: String) -> void:
@@ -524,8 +545,9 @@ func _on_computer_caught(event_id: String) -> void:
 		SoundCatalog.wave_name(kind),
 	])
 	if GameState.is_case_ready():
-		_show_toast("Улик достаточно. Открой планшет и сделай вывод.")
+		_show_toast("Улик достаточно. Нажми значок аппарата у компьютера и сделай вывод.")
 	_refresh_hint()
+	_sync_tablet_visibility()
 
 
 func _open_npc_dialog(npc: Node3D) -> void:
@@ -759,6 +781,7 @@ func _apply_safe_ui() -> void:
 		vp.size.y - tablet_size.y - 12.0 - bottom_pad
 	)
 	_device_btn.size = tablet_size
+	_sync_tablet_visibility()
 	_toast.position = Vector2(m.position.x + 24, m.position.y + 90)
 	_toast.size = Vector2(m.size.x - 48, 70)
 	if _joystick:
