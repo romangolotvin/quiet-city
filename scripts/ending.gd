@@ -20,7 +20,7 @@ func _ready() -> void:
 	set_anchors_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	z_index = 80
-	_case = GameState.current_case()
+	_case = CaseCatalog.by_id(GameState.ending_case_id) if not GameState.ending_case_id.is_empty() else GameState.current_case()
 	_ok = GameState.ending_ok
 	_suspect = _find_suspect(GameState.ending_suspect_id)
 	_caption = Label.new()
@@ -68,13 +68,18 @@ func _set_phase(phase: int) -> void:
 	_phase_t = 0.0
 	var label := str(_suspect.get("label", "Подозреваемый"))
 	var cry := str(_suspect.get("cry", "плачет"))
+	var title := str(_case.get("title", "Дело"))
 	if _ok:
 		if phase == 0:
-			_caption.text = "Все радуются! Дело раскрыто."
+			var full := GameState.ending_full_trace
+			if full:
+				_caption.text = "%s раскрыто по полному слепку.\n%s" % [title, str(_case.get("verdict_ok", "Все радуются!"))]
+			else:
+				_caption.text = "%s раскрыто.\nВсе радуются!" % title
 		else:
 			_caption.text = "%s за решёткой и %s." % [label, cry]
 	else:
-		_caption.text = "«Это был не я!»\n%s %s за решёткой." % [label, cry]
+		_caption.text = "«Это был не я!»\n%s %s за решёткой.\n%s" % [label, cry, str(CaseCatalog.VERDICT_BAD)]
 	queue_redraw()
 
 

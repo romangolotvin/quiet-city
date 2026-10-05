@@ -1,9 +1,8 @@
 extends Control
 
-## Компьютер на базе: ловля волн текущего дела.
+## Компьютер базы: разбор уже найденных волн (ловить — на местах города).
 
 signal closed
-signal caught(event_id: String)
 signal open_verdict
 
 const INK := Color(0.16, 0.11, 0.08)
@@ -29,23 +28,13 @@ func open_computer() -> void:
 	modulate.a = 0.0
 	_refresh()
 	_apply_layout()
-	var panel := get_node_or_null("Panel") as Control
-	if panel:
-		panel.position.y += 24.0
 	var tw := create_tween()
-	tw.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	tw.tween_property(self, "modulate:a", 1.0, 0.28)
-	if panel:
-		tw.parallel().tween_property(panel, "position:y", panel.position.y - 24.0, 0.3)
+	tw.tween_property(self, "modulate:a", 1.0, 0.25)
 
 
 func close_computer() -> void:
-	var tw := create_tween()
-	tw.tween_property(self, "modulate:a", 0.0, 0.16)
-	tw.tween_callback(func() -> void:
-		visible = false
-		closed.emit()
-	)
+	visible = false
+	closed.emit()
 
 
 func handle_tap(screen_pos: Vector2) -> bool:
@@ -58,9 +47,6 @@ func handle_tap(screen_pos: Vector2) -> bool:
 			var action := str(hit["action"])
 			if action == "close":
 				close_computer()
-			elif action == "catch":
-				caught.emit(str(hit["arg"]))
-				_refresh()
 			elif action == "verdict":
 				open_verdict.emit()
 			return true
@@ -119,36 +105,51 @@ func _refresh() -> void:
 		child.queue_free()
 
 	if not GameState.has_active_case():
-		_hint.text = "Нет активного дела. Поговори с жителем, затем лови волны здесь."
+		_hint.text = "Нет активного дела. Поговори с жителем, потом ищи волны по местам квартала."
 		_add_row("Закрыть", Color(0.86, 0.93, 0.98), "close", "")
 		return
 
 	var case_data := GameState.current_case()
 	var caught_n := GameState.caught_count()
-	var need := GameState.VOTE_READY_COUNT
-	_hint.text = "%s · поймано %d/%d. Выбери запись, чтобы поймать волну." % [
-		case_data.get("title", "Дело"), caught_n, need
+	var places_n := GameState.visited_place_count()
+	_hint.text = "%s · улик %d · мест %d/%d. Здесь — таймлайн найденного. Лови волны на улице." % [
+		case_data.get("title", "Дело"),
+		caught_n,
+		places_n,
+		GameState.VOTE_MIN_PLACES,
 	]
 
-	var any_left := false
+	var rows: Array = []
 	for event in case_data.get("events", []):
-		var eid := str(event["id"])
-		if GameState.is_event_caught(eid):
-			continue
-		any_left = true
-		var place_id := str(event["place_id"])
-		var place_name := place_id
-		if MapLayout.PLACES.has(place_id):
-			place_name = str(MapLayout.place(place_id)["name"])
-		var kind: SoundCatalog.Kind = event["kind"]
-		var caption := "%s · %s\n%s" % [event["time"], place_name, SoundCatalog.wave_name(kind)]
-		_add_row(caption, Color(0.72, 0.88, 0.98), "catch", eid)
+		if GameState.is_event_caught(str(event["id"])):
+			rows.append(event)
+	rows.sort_custom(func(a, b): return str(a.get("time", "")) < str(b.get("time", "")))
+
+	var key_time := str(case_data.get("key_time", ""))
+	if rows.is_empty():
+		var empty := Label.new()
+		empty.text = "Пока пусто. Обойди места квартала (двор, парк, калитка…) и поймай волны там."
+		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		empty.add_theme_font_size_override("font_size", 17)
+		empty.add_theme_color_override("font_color", Color(0.4, 0.3, 0.22))
+		_list.add_child(empty)
+	else:
+		for event in rows:
+			var kind: SoundCatalog.Kind = event["kind"]
+			var mark := "★ ключ" if str(event.get("time", "")) == key_time else "· спорно"
+			var caption := "%s · %s · %s\n%s\n[%s]" % [
+				event["time"], event.get("place", ""), SoundCatalog.wave_name(kind), event.get("note", ""), mark
+			]
+			var bg := Color(0.95, 0.85, 0.45) if str(event.get("time", "")) == key_time else Color(0.78, 0.88, 0.95)
+			_add_row(caption, bg, "noop", "")
 
 	if GameState.is_case_ready():
-		_hint.text = "Улик достаточно. Открой аппарат справа или кнопку ниже."
+		_hint.text = "Улик и мест достаточно. Можно делать вывод."
 		_add_row("Открыть аппарат · вердикт", Color(0.95, 0.82, 0.45), "verdict", "")
-	elif not any_left:
-		_hint.text = "Все доступные волны этого дела уже пойманы."
+	elif caught_n >= GameState.VOTE_READY_COUNT:
+		_hint.text = "Улик %d, но нужно посетить ещё места (сейчас %d/%d)." % [
+			caught_n, places_n, GameState.VOTE_MIN_PLACES
+		]
 	_add_row("Закрыть", Color(0.86, 0.93, 0.98), "close", "")
 
 
@@ -168,7 +169,7 @@ func _row(text: String, bg: Color, action: String, arg: String) -> ColorRect:
 	label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	label.offset_left = 12
 	label.offset_right = -12
-	label.add_theme_font_size_override("font_size", 18)
+	label.add_theme_font_size_override("font_size", 17)
 	label.add_theme_color_override("font_color", INK)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	btn.add_child(label)

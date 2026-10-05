@@ -1,6 +1,6 @@
 extends Control
 
-## Планшет: журнал улик и вердикт (ловлю волны — на компьютере базы).
+## Планшет: таймлайн улик и вердикт.
 
 signal closed
 signal accused(suspect_id: String)
@@ -64,7 +64,7 @@ func handle_tap(screen_pos: Vector2) -> bool:
 			elif action == "accuse":
 				accused.emit(str(hit["arg"]))
 			return true
-	return true # съедаем тап, пока аппарат открыт
+	return true
 
 
 func handle_drag(relative: Vector2) -> void:
@@ -112,7 +112,7 @@ func _build() -> void:
 	_scroll.add_child(col)
 
 	var log_h := Label.new()
-	log_h.text = "Журнал улик"
+	log_h.text = "Таймлайн улик"
 	log_h.add_theme_font_size_override("font_size", 20)
 	log_h.add_theme_color_override("font_color", INK)
 	col.add_child(log_h)
@@ -173,31 +173,43 @@ func _refresh() -> void:
 		_hint.text = "Дело не взято. Подойди к жителю с жёлтой точкой."
 		return
 
-	var events: Array = _case.get("events", [])
 	var need := GameState.VOTE_READY_COUNT
-	_hint.text = "Журнал и вердикт. Волны — на базе. Поймано %d/%d. %s" % [
-		GameState.caught_count(), need, _case.get("ask", "")
+	var places := GameState.visited_place_count()
+	_hint.text = "Поймано %d · мест %d/%d. Сравни время. %s" % [
+		GameState.caught_count(), places, GameState.VOTE_MIN_PLACES, _case.get("ask", "")
 	]
+	if GameState.clue_stage() >= 3:
+		_hint.text += " Полный слепок — вердикт будет точнее."
 
-	var any := false
-	for event in events:
-		if not GameState.is_event_caught(str(event["id"])):
-			continue
-		any = true
-		var kind: SoundCatalog.Kind = event["kind"]
-		var block := Label.new()
-		block.text = "%s · %s · %s\n%s" % [event["time"], SoundCatalog.wave_name(kind), event["place"], event["note"]]
-		block.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		block.add_theme_font_size_override("font_size", 17)
-		block.add_theme_color_override("font_color", INK)
-		_log_box.add_child(block)
-	if not any:
+	var events: Array = []
+	for event in _case.get("events", []):
+		if GameState.is_event_caught(str(event["id"])):
+			events.append(event)
+	events.sort_custom(func(a, b): return str(a.get("time", "")) < str(b.get("time", "")))
+	var key_time := str(_case.get("key_time", ""))
+	if events.is_empty():
 		var empty := Label.new()
-		empty.text = "Пока пусто. Вернись на базу к компьютеру, чтобы поймать волны."
+		empty.text = "Пусто. Ищи волны на местах квартала, потом разбери их на базе."
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.add_theme_font_size_override("font_size", 17)
 		empty.add_theme_color_override("font_color", Color(0.4, 0.3, 0.22))
 		_log_box.add_child(empty)
+	else:
+		for event in events:
+			var kind: SoundCatalog.Kind = event["kind"]
+			var key := str(event.get("time", "")) == key_time
+			var block := Label.new()
+			block.text = "%s · %s · %s%s\n%s" % [
+				event["time"],
+				SoundCatalog.wave_name(kind),
+				event["place"],
+				" ★" if key else " (возможно ложный след)",
+				event["note"],
+			]
+			block.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			block.add_theme_font_size_override("font_size", 17)
+			block.add_theme_color_override("font_color", Color(0.35, 0.2, 0.1) if key else INK)
+			_log_box.add_child(block)
 
 	if GameState.is_case_ready():
 		for suspect in _case.get("suspects", []):
@@ -206,7 +218,7 @@ func _refresh() -> void:
 			_suspects.add_child(row)
 	else:
 		var wait := Label.new()
-		wait.text = "Когда поймаешь любые %d волны, здесь появятся варианты ответа." % need
+		wait.text = "Нужно любые %d волны и минимум %d разных места." % [need, GameState.VOTE_MIN_PLACES]
 		wait.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		wait.add_theme_font_size_override("font_size", 17)
 		wait.add_theme_color_override("font_color", Color(0.4, 0.3, 0.22))
@@ -218,15 +230,15 @@ func _apply_layout() -> void:
 	if panel == null:
 		return
 	var m := UiFit.margins(get_viewport())
-	panel.position = Vector2(m.position.x + 20.0, m.position.y + 16.0)
-	panel.size = Vector2(m.size.x - 40.0, m.size.y - 32.0)
-	_title.position = Vector2(18, 14)
-	_title.size = Vector2(panel.size.x - 36, 34)
-	_hint.position = Vector2(18, 50)
-	_hint.size = Vector2(panel.size.x - 36, 48)
-	_scroll.position = Vector2(18, 104)
-	_scroll.size = Vector2(panel.size.x - 36, panel.size.y - 180)
-	var close_btn := panel.get_node_or_null("CloseBtn") as ColorRect
+	panel.position = Vector2(m.position.x + 20.0, m.position.y + 36.0)
+	panel.size = Vector2(m.size.x - 40.0, m.size.y - 72.0)
+	_title.position = Vector2(16, 12)
+	_title.size = Vector2(panel.size.x - 32, 32)
+	_hint.position = Vector2(16, 46)
+	_hint.size = Vector2(panel.size.x - 32, 48)
+	_scroll.position = Vector2(16, 100)
+	_scroll.size = Vector2(panel.size.x - 32, panel.size.y - 180)
+	var close_btn := panel.get_node_or_null("CloseBtn") as Control
 	if close_btn:
-		close_btn.position = Vector2(18, panel.size.y - 72)
-		close_btn.size = Vector2(panel.size.x - 36, 56)
+		close_btn.position = Vector2(16, panel.size.y - 72)
+		close_btn.size = Vector2(panel.size.x - 32, 56)

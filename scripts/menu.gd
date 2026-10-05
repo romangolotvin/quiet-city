@@ -88,15 +88,8 @@ func _run(action: String, arg: String) -> void:
 			get_tree().change_scene_to_file("res://scenes/district.tscn")
 		"settings":
 			_show_settings()
-		"diff":
-			_show_cases(arg)
-		"back_diff":
-			_show_difficulties()
 		"back_title":
 			_show_title()
-		"case":
-			GameState.case_id = arg
-			get_tree().change_scene_to_file("res://scenes/intake.tscn")
 		"toggle_music":
 			AppSettings.set_music_enabled(not AppSettings.music_enabled)
 			_show_settings()
@@ -186,50 +179,14 @@ func _show_settings() -> void:
 	_add_button(music_label, PLAY if AppSettings.music_enabled else CREAM, "toggle_music")
 	var auto_label := "Автопроверка обновлений: да" if AppSettings.auto_check_updates else "Автопроверка обновлений: нет"
 	_add_button(auto_label, ACCENT if AppSettings.auto_check_updates else CREAM, "toggle_auto")
-	_add_button("Проверить обновления", MEDIUM, "check_updates")
+	_add_button("Проверить обновления", ACCENT, "check_updates")
 	if not _pending_update.is_empty():
 		var notes := str(_pending_update.get("notes", ""))
 		var caption := "Обновить до %s" % _pending_update.get("version", "?")
 		if not notes.is_empty():
 			caption += "\n%s" % notes
-		_add_button(caption, EASY, "do_update")
+		_add_button(caption, PLAY, "do_update")
 	_add_button("Назад", CREAM, "back_title")
-	_scroll.scroll_vertical = 0
-
-
-func _show_difficulties() -> void:
-	_screen = "diff"
-	_subtitle.text = "Выбери сложность. Ситуации внутри — от простых к трудным."
-	_clear_hits()
-	for diff in CaseCatalog.difficulties():
-		var color := CREAM
-		match str(diff["id"]):
-			"easy":
-				color = EASY
-			"medium":
-				color = MEDIUM
-			"hard":
-				color = HARD
-		var count := CaseCatalog.cases_for(str(diff["id"])).size()
-		var caption := "%s\n%s · %d дела" % [diff["title"], diff["blurb"], count]
-		_add_button(caption, color, "diff", str(diff["id"]))
-	_add_button("Назад", CREAM, "back_title")
-	_scroll.scroll_vertical = 0
-
-
-func _show_cases(diff: String) -> void:
-	_screen = "cases"
-	var title := "Ситуации"
-	for item in CaseCatalog.difficulties():
-		if str(item["id"]) == diff:
-			title = str(item["title"])
-	_subtitle.text = "%s. Нажми ситуацию, чтобы выйти в город." % title
-	_clear_hits()
-	for case_data in CaseCatalog.cases_for(diff):
-		var signs: int = case_data["events"].size()
-		var caption := "%s\n%d %s" % [case_data["title"], signs, _signs_word(signs)]
-		_add_button(caption, CREAM, "case", str(case_data["id"]))
-	_add_button("Назад", CREAM, "back_diff")
 	_scroll.scroll_vertical = 0
 
 
@@ -298,19 +255,6 @@ func _add_button(text: String, bg: Color, action: String, arg: String = "") -> v
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_RESIZED:
 		_apply_safe_layout()
-
-
-func _signs_word(count: int) -> String:
-	var n := count % 100
-	if n >= 11 and n <= 14:
-		return "знаков"
-	match count % 10:
-		1:
-			return "знак"
-		2, 3, 4:
-			return "знака"
-		_:
-			return "знаков"
 
 
 func _draw() -> void:

@@ -26,6 +26,7 @@ AppSettings="*res://scripts/app_settings.gd"
 GameState="*res://scripts/game_state.gd"
 CalmMusic="*res://scripts/calm_music.gd"
 UpdateService="*res://scripts/update_service.gd"
+SoundFx="*res://scripts/sound_fx.gd"
 
 [display]
 

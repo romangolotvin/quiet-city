@@ -14,6 +14,9 @@ const JoystickScript := preload("res://scripts/virtual_joystick.gd")
 const CameraScript := preload("res://scripts/camera_controller.gd")
 const WaveScript := preload("res://scripts/wave_3d.gd")
 const ArrowScript := preload("res://scripts/offscreen_arrow_3d.gd")
+const StreetScript := preload("res://scripts/street_events.gd")
+const InteriorScript := preload("res://scripts/interior_room.gd")
+const PLACE_CATCH_RADIUS := 110.0
 
 const INK := Color(0.16, 0.11, 0.08)
 const BASE_RADIUS := 130.0
@@ -44,6 +47,11 @@ var _toast_tween: Tween
 var _cutscene_tween: Tween
 var _joystick: Control
 var _nav_arrow: Control
+var _street: Node3D
+var _interiors: Array[Node3D] = []
+var _active_interior: Node3D = null
+var _sun: DirectionalLight3D
+var _world_env: WorldEnvironment
 var _pointer_down := false
 var _pointer_start := Vector2.ZERO
 var _did_drag := false
@@ -61,7 +69,8 @@ func _ready() -> void:
 	_build_ui()
 	_apply_safe_ui()
 	get_viewport().size_changed.connect(_apply_safe_ui)
-	_show_toast("Погуляй по кварталу. Жёлтая точка — дело. Волны лови на базе у компьютера. C — камера.")
+	_show_toast("Погуляй по кварталу. Жёлтая точка — дело. Волны — на местах. C — камера. ПКМ — look.")
+
 
 
 func _compute_bounds() -> void:
@@ -74,22 +83,23 @@ func _compute_bounds() -> void:
 
 
 func _build_world() -> void:
-	var env := WorldEnvironment.new()
+	_world_env = WorldEnvironment.new()
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_COLOR
 	environment.background_color = Color(0.62, 0.82, 0.96)
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color(0.9, 0.88, 0.84)
 	environment.ambient_light_energy = 0.62
-	env.environment = environment
-	add_child(env)
+	_world_env.environment = environment
+	add_child(_world_env)
 
-	var sun := DirectionalLight3D.new()
-	sun.rotation_degrees = Vector3(-52, 28, 0)
-	sun.light_energy = 1.15
-	sun.light_color = Color(1.0, 0.97, 0.9)
-	sun.shadow_enabled = false
-	add_child(sun)
+	_sun = DirectionalLight3D.new()
+	_sun.rotation_degrees = Vector3(-52, 28, 0)
+	_sun.light_energy = 1.15
+	_sun.light_color = Color(1.0, 0.97, 0.9)
+	_sun.shadow_enabled = false
+	add_child(_sun)
+	_apply_case_light()
 
 	var city := Node3D.new()
 	city.set_script(CityMapScript)
@@ -132,6 +142,21 @@ func _build_world() -> void:
 	_cams.set_script(CameraScript)
 	add_child(_cams)
 	_cams.setup(_player)
+
+	for id in ["bakery", "house", "porch"]:
+		var room := Node3D.new()
+		room.set_script(InteriorScript)
+		add_child(room)
+		room.setup(id, MapLayout.to_3d(MapLayout.pos_of(id), 0.0), _player)
+		room.exited.connect(func() -> void:
+			_active_interior = null
+			_show_toast("Снова на улице.")
+		)
+		_interiors.append(room)
+
+	_street = Node3D.new()
+	_street.set_script(StreetScript)
+	add_child(_street)
 
 
 func _npc_data() -> Array[Dictionary]:
@@ -249,13 +274,22 @@ func _build_ui() -> void:
 	_computer = Control.new()
 	_computer.set_script(ComputerScript)
 	_ui.add_child(_computer)
-	_computer.caught.connect(_on_computer_caught)
 	_computer.closed.connect(_on_computer_closed)
 	if _computer.has_signal("open_verdict"):
 		_computer.open_verdict.connect(_on_computer_open_verdict)
 
 	_build_dialog()
 	_sync_tablet_visibility()
+	if _street and _street.has_method("setup"):
+		_street.setup(_player, _npcs, _ui, func() -> bool:
+			return (_dialog != null and _dialog.visible) \
+				or (_device != null and _device.visible) \
+				or (_computer != null and _computer.visible) \
+				or (_cams != null and _cams.has_method("is_cutscene") and _cams.is_cutscene()) \
+				or _active_interior != null
+		)
+		_street.toast.connect(_show_toast)
+		_street.catch_hint.connect(_on_street_catch_hint)
 
 
 func _on_device_closed() -> void:
@@ -474,6 +508,8 @@ func _on_tap(screen_pos: Vector2) -> void:
 		_device.open_device()
 		_sync_joystick_visibility()
 		return
+	if _street != null and _street.has_method("handle_tap") and _street.handle_tap(screen_pos):
+		return
 	if _menu_btn.get_global_rect().grow(grow).has_point(screen_pos):
 		get_tree().change_scene_to_file("res://scenes/menu.tscn")
 		return
@@ -490,6 +526,15 @@ func _on_tap(screen_pos: Vector2) -> void:
 		_handle_dialog_tap(screen_pos)
 		return
 	if _cams != null and _cams.has_method("is_cutscene") and _cams.is_cutscene():
+		return
+
+	if _active_interior != null:
+		if _active_interior.has_method("try_exit_near_player") and _active_interior.try_exit_near_player():
+			return
+		var iid := str(_active_interior.place_id)
+		if GameState.has_active_case() and _try_catch_at_place(iid):
+			return
+		_show_toast("Подойди к выходу или ищи следы у стола.")
 		return
 
 	var hit := _raycast_world(screen_pos)
@@ -515,10 +560,77 @@ func _on_tap(screen_pos: Vector2) -> void:
 		_open_base_computer()
 		return
 
+	# Войти в интерьер (если снаружи уже нет новых волн)
+	for room in _interiors:
+		var pid := str(room.place_id)
+		var place_pos := MapLayout.to_3d(MapLayout.pos_of(pid), 0.0)
+		if _xz_distance(place_pos, _player.global_position) <= 90.0:
+			if GameState.has_active_case() and _try_catch_at_place(pid):
+				return
+			_active_interior = room
+			room.enter()
+			_show_toast("Ты внутри. Ищи следы у стола, выход — у проёма.")
+			if GameState.has_active_case():
+				_try_catch_at_place(pid)
+			return
+
+	# Ловля волн на местах города
 	if GameState.has_active_case():
-		_show_toast("Вернись на базу к компьютеру, чтобы поймать волны")
+		var place_id := _nearest_place_id()
+		if not place_id.is_empty() and place_id != "base":
+			if _try_catch_at_place(place_id):
+				return
+			_show_toast("Здесь пока тихо. Попробуй другое место.")
+			return
+		_show_toast("Подойди к месту квартала или на базу к компьютеру.")
 	else:
 		_show_toast("Подойди ближе к человеку или к своей базе.")
+
+
+func _nearest_place_id() -> String:
+	var best := ""
+	var best_d := PLACE_CATCH_RADIUS
+	for place in _places:
+		var d: float = _xz_distance(place.global_position, _player.global_position)
+		if d <= best_d:
+			best_d = d
+			best = str(place.place_id)
+	return best
+
+
+func _try_catch_at_place(place_id: String) -> bool:
+	if not GameState.has_active_case():
+		return false
+	GameState.visit_place(place_id)
+	var case_data := GameState.current_case()
+	var caught_any := false
+	for event in case_data.get("events", []):
+		if str(event.get("place_id", "")) != place_id:
+			continue
+		var eid := str(event["id"])
+		if GameState.is_event_caught(eid):
+			continue
+		if GameState.catch_event(eid):
+			caught_any = true
+			var kind: SoundCatalog.Kind = event["kind"]
+			_spawn_wave(MapLayout.to_3d(MapLayout.pos_of(place_id), 8.0), SoundCatalog.color(kind))
+			if SoundFx:
+				SoundFx.play_kind(kind)
+			_show_toast("Волна: %s · %s · %s" % [event["time"], event.get("place", place_id), SoundCatalog.wave_name(kind)])
+			break
+	if caught_any:
+		if GameState.is_case_ready():
+			_show_toast("Улик и мест хватает. Открой планшет или компьютер базы.")
+		_refresh_hint()
+		_sync_tablet_visibility()
+	return caught_any
+
+
+func _on_street_catch_hint(place_id: String) -> void:
+	for place in _places:
+		if str(place.place_id) == place_id and _nav_arrow and _nav_arrow.has_method("set_target_3d"):
+			_nav_arrow.set_target_3d(place, "крик")
+			return
 
 
 func _raycast_world(screen_pos: Vector2) -> Dictionary:
@@ -624,56 +736,51 @@ func _update_nav_arrow() -> void:
 		return
 	if (_dialog != null and _dialog.visible) \
 			or (_device != null and _device.visible) \
-			or (_computer != null and _computer.visible):
+			or (_computer != null and _computer.visible) \
+			or _active_interior != null:
 		_nav_arrow.clear_target()
 		return
 	if GameState.has_active_case() and not GameState.is_case_ready():
+		# Ближайшее место с ещё не пойманной волной; иначе база для разбора.
+		var best_place: Node3D = null
+		var best_d := 999999.0
+		var case_data := GameState.current_case()
+		for place in _places:
+			var pid := str(place.place_id)
+			if pid == "base":
+				continue
+			var has_left := false
+			for event in case_data.get("events", []):
+				if str(event.get("place_id", "")) == pid and not GameState.is_event_caught(str(event["id"])):
+					has_left = true
+					break
+			if not has_left:
+				continue
+			var d: float = _xz_distance(place.global_position, _player.global_position)
+			if d < best_d:
+				best_d = d
+				best_place = place
+		if best_place:
+			_nav_arrow.set_target_3d(best_place, "волна")
+			return
 		for place in _places:
 			if str(place.place_id) == "base":
 				_nav_arrow.set_target_3d(place, "база")
 				return
 	var best: Node3D = null
-	var best_d := 999999.0
+	var best_npc_d := 999999.0
 	for npc in _npcs:
 		if GameState.has_active_case():
 			break
 		if npc.has_method("can_talk") and npc.can_talk():
-			var d: float = _xz_distance(npc.global_position, _player.global_position)
-			if d < best_d:
-				best_d = d
+			var d2: float = _xz_distance(npc.global_position, _player.global_position)
+			if d2 < best_npc_d:
+				best_npc_d = d2
 				best = npc
 	if best:
 		_nav_arrow.set_target_3d(best, "дело")
 	else:
 		_nav_arrow.clear_target()
-
-
-func _on_computer_caught(event_id: String) -> void:
-	if not GameState.has_active_case():
-		return
-	if GameState.is_event_caught(event_id):
-		return
-	var case_data := GameState.current_case()
-	var matched: Dictionary = {}
-	for event in case_data.get("events", []):
-		if str(event["id"]) == event_id:
-			matched = event
-			break
-	if matched.is_empty():
-		return
-	GameState.catch_event(event_id)
-	var kind: SoundCatalog.Kind = matched["kind"]
-	# Визуал у базы — игрок ловит волны с компьютера.
-	_spawn_wave(MapLayout.to_3d(MapLayout.pos_of("base"), 8.0), SoundCatalog.color(kind))
-	_show_toast("Поймано: %s · %s · %s" % [
-		matched["time"],
-		matched.get("place", matched.get("place_id", "")),
-		SoundCatalog.wave_name(kind),
-	])
-	if GameState.is_case_ready():
-		_show_toast("Улик достаточно. Нажми значок аппарата у компьютера и сделай вывод.")
-	_refresh_hint()
-	_sync_tablet_visibility()
 
 
 func _open_npc_dialog(npc: Node3D) -> void:
@@ -690,12 +797,19 @@ func _open_npc_dialog(npc: Node3D) -> void:
 		)
 		return
 	if GameState.active_case_id == npc.case_id:
-		_present_dialog(
-			npc.display_name,
-			"Ну как? Поймай волны на базе у компьютера и скажи на планшете, кто виноват.",
-			false,
-			npc
-		)
+		var stage := GameState.clue_stage()
+		var tip := "Обойди места квартала и лови волны. На базе компьютер разложит таймлайн."
+		var case_data := CaseCatalog.by_id(npc.case_id)
+		var tips: Dictionary = case_data.get("witness_tips", {})
+		if tips.has(str(clampi(stage, 1, 3))):
+			tip = str(tips[str(clampi(stage, 1, 3))])
+		elif stage == 1:
+			tip = "Слышала/слышал что-то у калитки и во дворе… Сравни время на компьютере."
+		elif stage == 2:
+			tip = "Улик уже хватает, но обойди ещё места — так вердикт надёжнее."
+		elif stage >= 3:
+			tip = "Почти полный слепок. Открой планшет и скажи, кто виноват."
+		_present_dialog(npc.display_name, tip, false, npc)
 		return
 
 	var case_data := CaseCatalog.by_id(npc.case_id)
@@ -875,7 +989,8 @@ func _handle_dialog_tap(screen_pos: Vector2) -> void:
 			_end_dialog_cutscene()
 			if action == "accept" and npc:
 				GameState.start_case(npc.case_id)
-				_show_toast("Дело принято. Вернись на базу к компьютеру, чтобы поймать волны.")
+				_apply_case_light()
+				_show_toast("Дело принято. Лови волны на местах квартала. База — таймлайн.")
 			elif action == "decline":
 				_show_toast("Может, позже.")
 			_talk_npc = null
@@ -895,8 +1010,43 @@ func _on_accused(suspect_id: String) -> void:
 
 
 func _on_ending_finished(_ok: bool) -> void:
+	_apply_case_light()
 	_show_toast("Можешь снова гулять по кварталу.")
 	_refresh_hint()
+	_sync_tablet_visibility()
+
+
+func _apply_case_light() -> void:
+	if _sun == null or _world_env == null or _world_env.environment == null:
+		return
+	var env := _world_env.environment
+	var hour := 15
+	if GameState.has_active_case():
+		var kt := str(GameState.current_case().get("key_time", "15:00"))
+		var parts := kt.split(":")
+		if parts.size() >= 1:
+			hour = int(parts[0])
+	if hour >= 21 or hour < 6:
+		env.background_color = Color(0.12, 0.16, 0.28)
+		env.ambient_light_color = Color(0.35, 0.4, 0.55)
+		env.ambient_light_energy = 0.45
+		_sun.rotation_degrees = Vector3(-18, 40, 0)
+		_sun.light_energy = 0.35
+		_sun.light_color = Color(0.55, 0.65, 0.95)
+	elif hour >= 18:
+		env.background_color = Color(0.72, 0.55, 0.42)
+		env.ambient_light_color = Color(0.95, 0.75, 0.6)
+		env.ambient_light_energy = 0.55
+		_sun.rotation_degrees = Vector3(-28, 50, 0)
+		_sun.light_energy = 0.85
+		_sun.light_color = Color(1.0, 0.72, 0.5)
+	else:
+		env.background_color = Color(0.62, 0.82, 0.96)
+		env.ambient_light_color = Color(0.9, 0.88, 0.84)
+		env.ambient_light_energy = 0.62
+		_sun.rotation_degrees = Vector3(-52, 28, 0)
+		_sun.light_energy = 1.15
+		_sun.light_color = Color(1.0, 0.97, 0.9)
 
 
 func _spawn_wave(world_pos: Vector3, color: Color) -> void:
@@ -915,13 +1065,16 @@ func _refresh_hint() -> void:
 	if GameState.has_active_case():
 		var c := GameState.current_case()
 		var caught := GameState.caught_count()
+		var places := GameState.visited_place_count()
 		var need := GameState.VOTE_READY_COUNT
-		if caught >= need:
-			_hint.text = "%s · %d волн · планшет: вердикт" % [c.get("title", "Дело"), caught]
+		if GameState.is_case_ready():
+			_hint.text = "%s · %d волн · %d мест · планшет: вердикт" % [c.get("title", "Дело"), caught, places]
 		else:
-			_hint.text = "%s · %d/%d · база: поймай волны" % [c.get("title", "Дело"), caught, need]
+			_hint.text = "%s · %d/%d волн · мест %d/%d" % [
+				c.get("title", "Дело"), caught, need, places, GameState.VOTE_MIN_PLACES
+			]
 	else:
-		_hint.text = "Квартал · житель с точкой · база — компьютер"
+		_hint.text = "Квартал · точка у жителя · волны на местах · база — разбор"
 
 
 func _show_toast(text: String) -> void:

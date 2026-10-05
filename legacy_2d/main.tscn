@@ -1,10 +1,10 @@
 [gd_scene load_steps=7 format=3 uid="uid://b8mainquietcity01"]
 
-[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
-[ext_resource type="Script" path="res://scripts/city_map.gd" id="2_city"]
-[ext_resource type="Script" path="res://scripts/book_journal.gd" id="3_book"]
-[ext_resource type="Script" path="res://scripts/book_closed.gd" id="4_closed"]
-[ext_resource type="Script" path="res://scripts/book_spread.gd" id="5_spread"]
+[ext_resource type="Script" path="res://legacy_2d/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://legacy_2d/city_map.gd" id="2_city"]
+[ext_resource type="Script" path="res://legacy_2d/book_journal.gd" id="3_book"]
+[ext_resource type="Script" path="res://legacy_2d/book_closed.gd" id="4_closed"]
+[ext_resource type="Script" path="res://legacy_2d/book_spread.gd" id="5_spread"]
 [ext_resource type="Script" path="res://scripts/offscreen_arrow.gd" id="6_arrow"]
 
 [node name="Main" type="Node2D"]

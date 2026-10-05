@@ -6,7 +6,7 @@ const MOVE_COOLDOWN := 0.16
 const NEXT_MARKER_DELAY := 1.0
 const HINT_IDLE := "Знак — услышать. Место — осмотреть. Книга — дело."
 
-const WaveScene := preload("res://scenes/wave.tscn")
+const WaveScene := preload("res://legacy_2d/wave.tscn")
 const MarkerScene := preload("res://scenes/attention_marker.tscn")
 const EndingScene := preload("res://scenes/ending.tscn")
 

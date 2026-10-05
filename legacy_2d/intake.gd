@@ -82,7 +82,7 @@ func _run(action: String) -> void:
 		"decline":
 			get_tree().change_scene_to_file("res://scenes/menu.tscn")
 		"accept":
-			get_tree().change_scene_to_file("res://scenes/main.tscn")
+			get_tree().change_scene_to_file("res://legacy_2d/main.tscn")
 
 
 func _build_ui() -> void:
