@@ -1,6 +1,6 @@
 {
-  "version": "2.0.0",
-  "notes": "Волны на местах, таймлайн, интерьеры, уличные ситуации, SFX, сейв, look ПКМ, 6 дел, навигация, чистые дороги.",
+  "version": "2.0.1",
+  "notes": "Бодрее музыка, дома не на дорогах, pitch камеры, фикс стрейфа джойстика, понятная стрелка уличных ситуаций.",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }

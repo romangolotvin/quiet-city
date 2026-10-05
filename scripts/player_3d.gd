@@ -7,16 +7,21 @@ const SPEED := 240.0
 const TURN_SPEED := 1.6
 ## Поворот пальцем: радианы на пиксель свайпа.
 const LOOK_DRAG_SENS := 0.0022
+const PITCH_MIN := deg_to_rad(-40.0)
+const PITCH_MAX := deg_to_rad(35.0)
 
 var facing := Vector3(0, 0, 1)
 ## Угол взгляда вокруг Y (0 = +Z). Камера 1/3 лица следует за ним.
 var yaw := 0.0
+## Наклон взгляда вверх/вниз (рад). Камера 1/3 лица следует за ним.
+var pitch := 0.0
 var _touch_dir := Vector2.ZERO
 var _camera_mode := 0
 var _move_basis: Basis = Basis.IDENTITY
 var _mesh: Node3D
 var _input_locked := false
 var _look_yaw_delta := 0.0
+var _look_pitch_delta := 0.0
 var _talk_bob := false
 
 
@@ -40,6 +45,10 @@ func add_look_yaw(delta_rad: float) -> void:
 	_look_yaw_delta += delta_rad
 
 
+func add_look_pitch(delta_rad: float) -> void:
+	_look_pitch_delta += delta_rad
+
+
 func set_camera_mode(mode: int) -> void:
 	_camera_mode = mode
 	if _mesh:
@@ -56,6 +65,7 @@ func set_input_locked(locked: bool) -> void:
 		velocity = Vector3.ZERO
 		_touch_dir = Vector2.ZERO
 		_look_yaw_delta = 0.0
+		_look_pitch_delta = 0.0
 
 
 func facing_flat() -> Vector3:
@@ -71,6 +81,7 @@ func _physics_process(delta: float) -> void:
 		velocity.x = 0.0
 		velocity.z = 0.0
 		_look_yaw_delta = 0.0
+		_look_pitch_delta = 0.0
 		move_and_slide()
 		global_position.y = 0.0
 		if _mesh:
@@ -81,6 +92,9 @@ func _physics_process(delta: float) -> void:
 	if absf(_look_yaw_delta) > 0.00001:
 		yaw -= _look_yaw_delta
 		_look_yaw_delta = 0.0
+	if absf(_look_pitch_delta) > 0.00001:
+		pitch = clampf(pitch - _look_pitch_delta, PITCH_MIN, PITCH_MAX)
+		_look_pitch_delta = 0.0
 
 	var dir2 := Vector2.ZERO
 	var analog := false
@@ -103,6 +117,7 @@ func _physics_process(delta: float) -> void:
 			if analog:
 				strength = clampf(dir2.length(), 0.0, 1.0)
 			dir2 = dir2.normalized()
+			# Вид сверху: X экрана = X мира (без инверсии — иначе клавиатура/стик расходятся).
 			move = Vector3(dir2.x, 0.0, dir2.y)
 			facing = move
 			yaw = atan2(facing.x, facing.z)
@@ -122,9 +137,9 @@ func _physics_process(delta: float) -> void:
 		var forward_axis := 0.0
 		var strafe_axis := 0.0
 		if analog:
-			# Джойстик: Y — вперёд, X — стрейф (без поворота yaw).
+			# Джойстик: Y — вперёд, X — стрейф (инверсия: стик влево = идти влево).
 			forward_axis = -dir2.y
-			strafe_axis = dir2.x
+			strafe_axis = -dir2.x
 		else:
 			if Input.is_key_pressed(KEY_W) or Input.is_key_pressed(KEY_UP):
 				forward_axis -= 1.0

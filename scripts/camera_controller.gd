@@ -107,6 +107,12 @@ func _apply_current() -> void:
 	_cam_first.current = _mode == AppSettings.CAMERA_FIRST
 
 
+func _player_pitch() -> float:
+	if _player and "pitch" in _player:
+		return float(_player.pitch)
+	return 0.0
+
+
 func _process(_delta: float) -> void:
 	if _player == null or _cutscene_active:
 		return
@@ -120,19 +126,28 @@ func _process(_delta: float) -> void:
 		face = Vector3(0, 0, 1)
 	else:
 		face = face.normalized()
+	var pitch := _player_pitch()
+	var look_dir := Vector3(face.x, 0.0, face.z).normalized()
+	look_dir.y = tan(pitch)
+	look_dir = look_dir.normalized()
 
 	# Сверху
 	_cam_top.global_position = p + Vector3(0, TOP_HEIGHT, 0)
 	_cam_top.look_at(p + Vector3(0, 0, 0.01), Vector3(0, 0, -1))
 
-	# 3 лицо — за спиной по yaw, без мгновенных рывков от стрейфа
+	# 3 лицо — за спиной по yaw, высота/дистанция с учётом pitch
 	var back := -face
-	_cam_third.global_position = p + Vector3(back.x, 0, back.z) * THIRD_DIST + Vector3(0, THIRD_HEIGHT, 0)
-	_cam_third.look_at(p + Vector3(0, 22, 0), Vector3.UP)
+	var pitch_lift := -sin(pitch) * THIRD_DIST * 0.55
+	var pitch_pull := cos(pitch)
+	_cam_third.global_position = p \
+		+ Vector3(back.x, 0, back.z) * (THIRD_DIST * pitch_pull) \
+		+ Vector3(0, THIRD_HEIGHT + pitch_lift, 0)
+	var third_look := p + Vector3(0, 22, 0) + look_dir * 40.0
+	_cam_third.look_at(third_look, Vector3.UP)
 
 	# 1 лицо
 	_cam_first.global_position = p + Vector3(0, FIRST_HEIGHT, 0) + face * 8.0
-	_cam_first.look_at(p + Vector3(0, FIRST_HEIGHT, 0) + face * 40.0, Vector3.UP)
+	_cam_first.look_at(_cam_first.global_position + look_dir * 40.0, Vector3.UP)
 
 	if _player.has_method("set_move_basis"):
 		_player.set_move_basis(current_camera().global_transform.basis)

@@ -405,7 +405,9 @@ func _handle_mouse_motion(event: InputEventMouseMotion) -> void:
 		return
 	if _player and _player.has_method("add_look_yaw"):
 		_player.add_look_yaw(event.relative.x * LOOK_SENS_MOUSE)
-		_mark_handled()
+	if _player and _player.has_method("add_look_pitch"):
+		_player.add_look_pitch(event.relative.y * LOOK_SENS_MOUSE)
+	_mark_handled()
 
 
 func _mark_handled() -> void:
@@ -491,6 +493,8 @@ func _handle_drag(event: InputEventScreenDrag) -> void:
 		if mode == AppSettings.CAMERA_FIRST or mode == AppSettings.CAMERA_THIRD:
 			if _player and _player.has_method("add_look_yaw"):
 				_player.add_look_yaw(event.relative.x * LOOK_SENS_TOUCH)
+			if _player and _player.has_method("add_look_pitch"):
+				_player.add_look_pitch(event.relative.y * LOOK_SENS_TOUCH)
 		else:
 			_touch_move = true
 			var dir := event.relative
@@ -626,11 +630,9 @@ func _try_catch_at_place(place_id: String) -> bool:
 	return caught_any
 
 
-func _on_street_catch_hint(place_id: String) -> void:
-	for place in _places:
-		if str(place.place_id) == place_id and _nav_arrow and _nav_arrow.has_method("set_target_3d"):
-			_nav_arrow.set_target_3d(place, "крик")
-			return
+func _on_street_catch_hint(_place_id: String) -> void:
+	# Цель крика задаётся через street_events.nav_target(); стрелка берёт её в _update_nav_arrow.
+	pass
 
 
 func _raycast_world(screen_pos: Vector2) -> Dictionary:
@@ -740,6 +742,16 @@ func _update_nav_arrow() -> void:
 			or _active_interior != null:
 		_nav_arrow.clear_target()
 		return
+	# Уличная ситуация важнее обычной навигации.
+	if _street != null and _street.has_method("is_active") and _street.is_active():
+		if _street.has_method("nav_target"):
+			var st: Node3D = _street.nav_target()
+			if st != null and is_instance_valid(st):
+				var cap := "Сюда"
+				if _street.has_method("nav_caption"):
+					cap = str(_street.nav_caption())
+				_nav_arrow.set_target_3d(st, cap)
+				return
 	if GameState.has_active_case() and not GameState.is_case_ready():
 		# Ближайшее место с ещё не пойманной волной; иначе база для разбора.
 		var best_place: Node3D = null
@@ -761,11 +773,11 @@ func _update_nav_arrow() -> void:
 				best_d = d
 				best_place = place
 		if best_place:
-			_nav_arrow.set_target_3d(best_place, "волна")
+			_nav_arrow.set_target_3d(best_place, "Волна")
 			return
 		for place in _places:
 			if str(place.place_id) == "base":
-				_nav_arrow.set_target_3d(place, "база")
+				_nav_arrow.set_target_3d(place, "База")
 				return
 	var best: Node3D = null
 	var best_npc_d := 999999.0
@@ -778,7 +790,7 @@ func _update_nav_arrow() -> void:
 				best_npc_d = d2
 				best = npc
 	if best:
-		_nav_arrow.set_target_3d(best, "дело")
+		_nav_arrow.set_target_3d(best, "Дело")
 	else:
 		_nav_arrow.clear_target()
 

@@ -11,8 +11,10 @@ var _cooldown := 12.0
 var _active := false
 var _attacker: Node3D = null
 var _chase_target: Node3D = null
+var _nav_marker: Node3D = null
 var _chase_timer := 0.0
 var _mode := ""
+var _caption := ""
 var _ui_btn: Label = null
 var _ui_layer: CanvasLayer = null
 var _blocked_fn: Callable
@@ -28,6 +30,24 @@ func setup(player: Node3D, npcs: Array, ui: CanvasLayer, blocked: Callable) -> v
 
 func is_active() -> bool:
 	return _active
+
+
+func nav_target() -> Node3D:
+	if not _active:
+		return null
+	match _mode:
+		"attack":
+			return _attacker if is_instance_valid(_attacker) else null
+		"chase":
+			return _chase_target if is_instance_valid(_chase_target) else null
+		"cry", "quarrel", "false":
+			return _nav_marker if is_instance_valid(_nav_marker) else null
+		_:
+			return null
+
+
+func nav_caption() -> String:
+	return _caption if not _caption.is_empty() else "Сюда"
 
 
 func handle_tap(screen_pos: Vector2) -> bool:
@@ -71,6 +91,7 @@ func _try_start() -> void:
 
 func _start_attack() -> void:
 	_mode = "attack"
+	_caption = "Опасность"
 	_active = true
 	_attacker = _make_runner(Color(0.75, 0.25, 0.22))
 	_show_action("Увернись!", "Уклонись от нападения")
@@ -79,18 +100,20 @@ func _start_attack() -> void:
 
 func _start_cry() -> void:
 	_mode = "cry"
+	_caption = "Крик"
 	_active = true
 	_chase_timer = 16.0
 	var places := ["alley", "park", "market", "embankment"]
 	var pid := str(places[randi() % places.size()])
+	_set_place_marker(pid)
 	_show_action("Беги к крику", "Крик из «%s» — успей!" % pid)
 	toast.emit("Крик с другой улицы! Стрелка ведёт к месту.")
 	catch_hint.emit(pid)
-	_chase_timer = 16.0
 
 
 func _start_chase() -> void:
 	_mode = "chase"
+	_caption = "Погоня"
 	_active = true
 	_chase_timer = 12.0
 	_chase_target = _make_runner(Color(0.2, 0.2, 0.25))
@@ -100,18 +123,46 @@ func _start_chase() -> void:
 
 func _start_quarrel() -> void:
 	_mode = "quarrel"
+	_caption = "Сюда"
 	_active = true
 	_chase_timer = 6.0
+	_set_place_marker("plaza")
 	_show_action("Слушать", "Постой рядом со спором")
 	toast.emit("На площади спор — постой рядом, чтобы услышать.")
 
 
 func _start_false_alarm() -> void:
 	_mode = "false"
+	_caption = "Сюда"
 	_active = true
 	_chase_timer = 8.0
+	# Точка шума рядом с игроком — стабильный маркер, не прыгает.
+	var offset := Vector3(randf_range(-120, 120), 0, randf_range(-120, 120))
+	if offset.length() < 40.0:
+		offset = Vector3(80, 0, 40)
+	_set_world_marker(_player.global_position + offset)
 	_show_action("Проверить", "Громкий шум рядом")
 	toast.emit("Громкий шум! Проверь…")
+
+
+func _set_place_marker(place_id: String) -> void:
+	_clear_nav_marker()
+	_nav_marker = Node3D.new()
+	add_child(_nav_marker)
+	_nav_marker.global_position = MapLayout.to_3d(MapLayout.pos_of(place_id), 0.0)
+
+
+func _set_world_marker(pos: Vector3) -> void:
+	_clear_nav_marker()
+	_nav_marker = Node3D.new()
+	add_child(_nav_marker)
+	_nav_marker.global_position = pos
+
+
+func _clear_nav_marker() -> void:
+	if _nav_marker and is_instance_valid(_nav_marker):
+		_nav_marker.queue_free()
+	_nav_marker = null
 
 
 func _update_active(delta: float) -> void:
@@ -262,7 +313,9 @@ func _hide_action() -> void:
 func _end_event(msg: String) -> void:
 	_active = false
 	_mode = ""
+	_caption = ""
 	_hide_action()
+	_clear_nav_marker()
 	if _attacker and is_instance_valid(_attacker):
 		_attacker.queue_free()
 	_attacker = null
