@@ -1,6 +1,6 @@
 {
-  "version": "1.2.1",
-  "notes": "Волны на всех местах квартала; жители отодвинуты от точек ловли.",
+  "version": "1.2.2",
+  "notes": "Крупный виртуальный джойстик для ходьбы на телефоне.",
   "windows": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity-windows.zip",
   "android": "https://github.com/romangolotvin/quiet-city/releases/latest/download/QuietCity.apk"
 }

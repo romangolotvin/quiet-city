@@ -181,16 +181,16 @@ func _build_ui() -> void:
 	_device_btn.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_ui.add_child(_device_btn)
 
+	_joystick = Control.new()
+	_joystick.set_script(JoystickScript)
+	_ui.add_child(_joystick)
+	_joystick.direction_changed.connect(_on_joystick_dir)
+
 	_device = Control.new()
 	_device.set_script(DeviceScript)
 	_ui.add_child(_device)
 	_device.accused.connect(_on_accused)
 	_device.closed.connect(_refresh_hint)
-
-	_joystick = Control.new()
-	_joystick.set_script(JoystickScript)
-	_ui.add_child(_joystick)
-	_joystick.direction_changed.connect(_on_joystick_dir)
 
 	_build_dialog()
 
@@ -234,6 +234,7 @@ func _build_dialog() -> void:
 func _process(_delta: float) -> void:
 	_clamp_player()
 	_refresh_hint()
+	_sync_joystick_visibility()
 
 
 func _clamp_player() -> void:
@@ -268,7 +269,9 @@ func _handle_touch(event: InputEventScreenTouch) -> void:
 	if not _pointer_down:
 		return
 	_pointer_down = false
-	_player.set_touch_dir(Vector2.ZERO)
+	# Джойстик сам держит направление; тап по миру его не сбрасывает.
+	if not _joystick_blocks_touch():
+		_player.set_touch_dir(Vector2.ZERO)
 	if _did_drag and _touch_move:
 		return
 	_on_tap(event.position)
@@ -281,6 +284,19 @@ func _on_joystick_dir(dir: Vector2) -> void:
 
 func _joystick_blocks_touch() -> bool:
 	return _joystick != null and _joystick.visible
+
+
+func _sync_joystick_visibility() -> void:
+	if _joystick == null:
+		return
+	var want := DisplayServer.is_touchscreen_available() \
+		and not (_device != null and _device.visible) \
+		and not (_dialog != null and _dialog.visible)
+	if _joystick.visible == want:
+		return
+	_joystick.visible = want
+	if not want and _player:
+		_player.set_touch_dir(Vector2.ZERO)
 
 
 func _handle_drag(event: InputEventScreenDrag) -> void:
@@ -514,13 +530,13 @@ func _apply_safe_ui() -> void:
 	_toast.position = Vector2(m.position.x + 24, m.position.y + 90)
 	_toast.size = Vector2(m.size.x - 48, 70)
 	if _joystick:
-		_joystick.visible = DisplayServer.is_touchscreen_available()
 		var joy_size := Vector2(200, 200)
 		_joystick.size = joy_size
 		_joystick.position = Vector2(
 			m.position.x + 12.0,
 			m.end.y - joy_size.y - 10.0
 		)
+		_sync_joystick_visibility()
 	if _dialog.visible:
 		_layout_dialog(not _dialog_hits.is_empty() and str(_dialog_hits[0].get("action", "")) != "close")
 
