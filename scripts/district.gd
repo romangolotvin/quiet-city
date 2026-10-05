@@ -6,6 +6,7 @@ const EndingScene := preload("res://scenes/ending.tscn")
 const PlayerScript := preload("res://scripts/player_3d.gd")
 const NpcScript := preload("res://scripts/npc_resident_3d.gd")
 const DeviceScript := preload("res://scripts/device_ui.gd")
+const ComputerScript := preload("res://scripts/base_computer_ui.gd")
 const TabletIconScript := preload("res://scripts/tablet_icon.gd")
 const MapPlaceScript := preload("res://scripts/map_place_3d.gd")
 const CityMapScript := preload("res://scripts/city_map_3d.gd")
@@ -14,7 +15,8 @@ const CameraScript := preload("res://scripts/camera_controller.gd")
 const WaveScript := preload("res://scripts/wave_3d.gd")
 
 const INK := Color(0.16, 0.11, 0.08)
-const CATCH_RADIUS := 110.0
+const BASE_RADIUS := 130.0
+const CUTSCENE_DURATION := 0.55
 
 var _player: CharacterBody3D
 var _cams: Node3D
@@ -28,11 +30,13 @@ var _menu_btn: Label
 var _cam_btn: Label
 var _device_btn: Control
 var _device: Control
+var _computer: Control
 var _dialog: Control
 var _dialog_title: Label
 var _dialog_body: Label
 var _dialog_hits: Array[Dictionary] = []
 var _toast_tween: Tween
+var _cutscene_tween: Tween
 var _joystick: Control
 var _pointer_down := false
 var _pointer_start := Vector2.ZERO
@@ -40,6 +44,7 @@ var _did_drag := false
 var _touch_move := false
 var _bounds := Rect2()
 var _talk_npc: Node3D = null
+var _dialog_choices := false
 
 
 func _ready() -> void:
@@ -48,7 +53,7 @@ func _ready() -> void:
 	_build_ui()
 	_apply_safe_ui()
 	get_viewport().size_changed.connect(_apply_safe_ui)
-	_show_toast("Погуляй по кварталу. Жёлтая точка — у человека есть дело. C — смена камеры.")
+	_show_toast("Погуляй по кварталу. Жёлтая точка — дело. Волны лови на базе у компьютера. C — камера.")
 
 
 func _compute_bounds() -> void:
@@ -213,6 +218,12 @@ func _build_ui() -> void:
 	_device.accused.connect(_on_accused)
 	_device.closed.connect(_refresh_hint)
 
+	_computer = Control.new()
+	_computer.set_script(ComputerScript)
+	_ui.add_child(_computer)
+	_computer.caught.connect(_on_computer_caught)
+	_computer.closed.connect(_refresh_hint)
+
 	_build_dialog()
 
 
@@ -330,7 +341,9 @@ func _sync_joystick_visibility() -> void:
 		return
 	var want := DisplayServer.is_touchscreen_available() \
 		and not (_device != null and _device.visible) \
-		and not (_dialog != null and _dialog.visible)
+		and not (_computer != null and _computer.visible) \
+		and not (_dialog != null and _dialog.visible) \
+		and not (_cams != null and _cams.has_method("is_cutscene") and _cams.is_cutscene())
 	if _joystick.visible == want:
 		return
 	_joystick.visible = want
@@ -345,7 +358,11 @@ func _handle_drag(event: InputEventScreenDrag) -> void:
 		_device.handle_drag(event.relative)
 		_did_drag = true
 		return
-	if _dialog.visible:
+	if _computer.visible:
+		_computer.handle_drag(event.relative)
+		_did_drag = true
+		return
+	if _dialog.visible or (_cams != null and _cams.has_method("is_cutscene") and _cams.is_cutscene()):
 		return
 	if _joystick_blocks_touch():
 		if event.position.distance_to(_pointer_start) > 22.0:
@@ -364,8 +381,13 @@ func _on_tap(screen_pos: Vector2) -> void:
 	if _device.visible:
 		_device.handle_tap(screen_pos)
 		return
+	if _computer.visible:
+		_computer.handle_tap(screen_pos)
+		return
 	if _dialog.visible:
 		_handle_dialog_tap(screen_pos)
+		return
+	if _cams != null and _cams.has_method("is_cutscene") and _cams.is_cutscene():
 		return
 	if _menu_btn.get_global_rect().grow(grow).has_point(screen_pos):
 		get_tree().change_scene_to_file("res://scenes/menu.tscn")
@@ -378,7 +400,7 @@ func _on_tap(screen_pos: Vector2) -> void:
 		return
 
 	var hit := _raycast_world(screen_pos)
-	# NPC приоритетнее места
+	# NPC приоритетнее базы
 	var nearest_npc: Node3D = null
 	var nearest_npc_d := 99999.0
 	for npc in _npcs:
@@ -396,21 +418,14 @@ func _on_tap(screen_pos: Vector2) -> void:
 				_open_npc_dialog(nearest_npc)
 				return
 
+	if _is_near_base(hit):
+		_open_base_computer()
+		return
+
 	if GameState.has_active_case():
-		var place_id := ""
-		if hit.has("place"):
-			var place_node: Node3D = hit["place"]
-			if _xz_distance(place_node.global_position, _player.global_position) <= CATCH_RADIUS:
-				place_id = str(place_node.place_id)
-		if place_id.is_empty():
-			for place in _places:
-				if _xz_distance(place.global_position, _player.global_position) <= CATCH_RADIUS:
-					place_id = str(place.place_id)
-					break
-		if not place_id.is_empty():
-			_try_catch_at(place_id)
-			return
-	_show_toast("Подойди ближе к человеку или месту.")
+		_show_toast("Вернись на базу к компьютеру, чтобы поймать волны")
+	else:
+		_show_toast("Подойди ближе к человеку или к своей базе.")
 
 
 func _raycast_world(screen_pos: Vector2) -> Dictionary:
@@ -459,34 +474,151 @@ func _xz_distance(a: Vector3, b: Vector3) -> float:
 	return Vector2(a.x, a.z).distance_to(Vector2(b.x, b.z))
 
 
+func _is_near_base(hit: Dictionary = {}) -> bool:
+	var base_place: Node3D = null
+	for place in _places:
+		if str(place.place_id) == "base":
+			base_place = place
+			break
+	if base_place == null:
+		return false
+	if _xz_distance(base_place.global_position, _player.global_position) > BASE_RADIUS:
+		return false
+	if hit.has("place"):
+		var place_node: Node3D = hit["place"]
+		if str(place_node.place_id) == "base":
+			return true
+	if hit.has("point") and base_place.has_method("contains_xz"):
+		if base_place.contains_xz(hit["point"]):
+			return true
+	return _xz_distance(base_place.global_position, _player.global_position) <= BASE_RADIUS * 0.7
+
+
+func _open_base_computer() -> void:
+	if _computer == null:
+		return
+	_computer.open_computer()
+	_sync_joystick_visibility()
+
+
+func _on_computer_caught(event_id: String) -> void:
+	if not GameState.has_active_case():
+		return
+	if GameState.is_event_caught(event_id):
+		return
+	var case_data := GameState.current_case()
+	var matched: Dictionary = {}
+	for event in case_data.get("events", []):
+		if str(event["id"]) == event_id:
+			matched = event
+			break
+	if matched.is_empty():
+		return
+	GameState.catch_event(event_id)
+	var kind: SoundCatalog.Kind = matched["kind"]
+	# Визуал у базы — игрок ловит волны с компьютера.
+	_spawn_wave(MapLayout.to_3d(MapLayout.pos_of("base"), 8.0), SoundCatalog.color(kind))
+	_show_toast("Поймано: %s · %s · %s" % [
+		matched["time"],
+		matched.get("place", matched.get("place_id", "")),
+		SoundCatalog.wave_name(kind),
+	])
+	if GameState.is_case_ready():
+		_show_toast("Улик достаточно. Открой планшет и сделай вывод.")
+	_refresh_hint()
+
+
 func _open_npc_dialog(npc: Node3D) -> void:
 	_talk_npc = npc
 	if GameState.is_case_closed(npc.case_id):
-		_show_simple_dialog(npc.display_name, "Спасибо. Теперь в квартале снова тише.")
+		_present_dialog(npc.display_name, "Спасибо. Теперь в квартале снова тише.", false, npc)
 		return
 	if GameState.has_active_case() and GameState.active_case_id != npc.case_id:
-		_show_simple_dialog(npc.display_name, "Ты уже разбираешь другое дело. Сначала закончи его аппаратом.")
+		_present_dialog(
+			npc.display_name,
+			"Ты уже разбираешь другое дело. Сначала закончи его на планшете.",
+			false,
+			npc
+		)
 		return
 	if GameState.active_case_id == npc.case_id:
-		_show_simple_dialog(npc.display_name, "Ну как? Поймай волны аппаратом по кварталу и скажи, кто виноват.")
+		_present_dialog(
+			npc.display_name,
+			"Ну как? Поймай волны на базе у компьютера и скажи на планшете, кто виноват.",
+			false,
+			npc
+		)
 		return
 
 	var case_data := CaseCatalog.by_id(npc.case_id)
 	var intake: Dictionary = case_data.get("intake", {})
-	_dialog_hits.clear()
-	_dialog.visible = true
-	_dialog_title.text = str(intake.get("client_name", npc.display_name))
-	_dialog_body.text = str(intake.get("speech", case_data.get("brief", "")))
-	_layout_dialog(true)
+	_present_dialog(
+		str(intake.get("client_name", npc.display_name)),
+		str(intake.get("speech", case_data.get("brief", ""))),
+		true,
+		npc
+	)
 
 
-func _show_simple_dialog(title: String, body: String) -> void:
-	_talk_npc = null
+func _present_dialog(title: String, body: String, with_choices: bool, focus_npc: Node3D) -> void:
+	_talk_npc = focus_npc if with_choices else null
 	_dialog_hits.clear()
-	_dialog.visible = true
+	_dialog_choices = with_choices
+	_dialog.visible = false
 	_dialog_title.text = title
 	_dialog_body.text = body
-	_layout_dialog(false)
+	_layout_dialog(with_choices)
+	_start_dialog_cutscene(focus_npc)
+
+
+func _start_dialog_cutscene(npc: Node3D) -> void:
+	if _player:
+		_player.set_touch_dir(Vector2.ZERO)
+	_sync_joystick_visibility()
+	if _cams == null or not _cams.has_method("begin_cutscene") or npc == null:
+		_dialog.visible = true
+		return
+
+	var cam: Camera3D = _cams.begin_cutscene()
+	var look_at := npc.global_position + Vector3(0, 28, 0)
+	var from_p := _player.global_position
+	var to_npc := look_at - from_p
+	to_npc.y = 0.0
+	if to_npc.length_squared() < 0.01:
+		to_npc = Vector3(0, 0, 1)
+	else:
+		to_npc = to_npc.normalized()
+	var side := to_npc.cross(Vector3.UP).normalized()
+	# Плечо / 3/4: чуть сбоку и сзади линии взгляд→NPC.
+	var target_pos := look_at - to_npc * 58.0 + side * 40.0 + Vector3(0, 16, 0)
+
+	var start_xform := cam.global_transform
+	cam.global_position = target_pos
+	cam.look_at(look_at, Vector3.UP)
+	var end_xform := cam.global_transform
+	cam.global_transform = start_xform
+
+	if _cutscene_tween and _cutscene_tween.is_valid():
+		_cutscene_tween.kill()
+	_cutscene_tween = create_tween()
+	_cutscene_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	_cutscene_tween.tween_property(cam, "global_transform", end_xform, CUTSCENE_DURATION)
+	_cutscene_tween.tween_callback(_reveal_dialog)
+
+
+func _reveal_dialog() -> void:
+	_dialog.visible = true
+	_sync_joystick_visibility()
+
+
+func _end_dialog_cutscene() -> void:
+	if _cutscene_tween and _cutscene_tween.is_valid():
+		_cutscene_tween.kill()
+	_cutscene_tween = null
+	_dialog.visible = false
+	if _cams and _cams.has_method("end_cutscene"):
+		_cams.end_cutscene()
+	_sync_joystick_visibility()
 
 
 func _layout_dialog(with_choices: bool) -> void:
@@ -544,32 +676,16 @@ func _handle_dialog_tap(screen_pos: Vector2) -> void:
 		var node: Control = hit["node"]
 		if node.get_global_rect().grow(grow).has_point(screen_pos):
 			var action := str(hit["action"])
-			_dialog.visible = false
-			if action == "accept" and _talk_npc:
-				GameState.start_case(_talk_npc.case_id)
-				_show_toast("Дело принято. Ходи по кварталу и лови волны у мест.")
+			var npc := _talk_npc
+			_end_dialog_cutscene()
+			if action == "accept" and npc:
+				GameState.start_case(npc.case_id)
+				_show_toast("Дело принято. Вернись на базу к компьютеру, чтобы поймать волны.")
 			elif action == "decline":
 				_show_toast("Может, позже.")
 			_talk_npc = null
+			_refresh_hint()
 			return
-
-
-func _try_catch_at(place_id: String) -> void:
-	var case_data := GameState.current_case()
-	for event in case_data.get("events", []):
-		if str(event["place_id"]) != place_id:
-			continue
-		var eid := str(event["id"])
-		if GameState.is_event_caught(eid):
-			continue
-		GameState.catch_event(eid)
-		var kind: SoundCatalog.Kind = event["kind"]
-		_spawn_wave(MapLayout.to_3d(MapLayout.pos_of(place_id), 4.0), SoundCatalog.color(kind))
-		_show_toast("Поймано: %s · %s" % [event["time"], SoundCatalog.wave_name(kind)])
-		if GameState.is_case_ready():
-			_show_toast("Улик достаточно. Открой аппарат и сделай вывод.")
-		return
-	_show_toast("Здесь больше нечего ловить для текущего дела.")
 
 
 func _on_accused(suspect_id: String) -> void:
@@ -606,11 +722,11 @@ func _refresh_hint() -> void:
 		var caught := GameState.caught_count()
 		var need := GameState.VOTE_READY_COUNT
 		if caught >= need:
-			_hint.text = "%s · %d волн · можно голосовать" % [c.get("title", "Дело"), caught]
+			_hint.text = "%s · %d волн · планшет: вердикт" % [c.get("title", "Дело"), caught]
 		else:
-			_hint.text = "%s · %d/%d волн для вывода" % [c.get("title", "Дело"), caught, need]
+			_hint.text = "%s · %d/%d · база: поймай волны" % [c.get("title", "Дело"), caught, need]
 	else:
-		_hint.text = "Квартал · подойди к жителю с жёлтой точкой"
+		_hint.text = "Квартал · житель с точкой · база — компьютер"
 
 
 func _show_toast(text: String) -> void:
@@ -654,4 +770,4 @@ func _apply_safe_ui() -> void:
 		)
 		_sync_joystick_visibility()
 	if _dialog.visible:
-		_layout_dialog(not _dialog_hits.is_empty() and str(_dialog_hits[0].get("action", "")) != "close")
+		_layout_dialog(_dialog_choices)

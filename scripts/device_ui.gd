@@ -1,6 +1,6 @@
 extends Control
 
-## Аппарат ловли звуковых волн: записи и обвинение.
+## Планшет: журнал улик и вердикт (ловлю волны — на компьютере базы).
 
 signal closed
 signal accused(suspect_id: String)
@@ -99,7 +99,7 @@ func _build() -> void:
 	_scroll.add_child(col)
 
 	var log_h := Label.new()
-	log_h.text = "Записи аппарата"
+	log_h.text = "Журнал улик"
 	log_h.add_theme_font_size_override("font_size", 20)
 	log_h.add_theme_color_override("font_color", INK)
 	col.add_child(log_h)
@@ -118,7 +118,7 @@ func _build() -> void:
 	_suspects.add_theme_constant_override("separation", 8)
 	col.add_child(_suspects)
 
-	var close_btn := _make_row("Закрыть аппарат", Color(0.9, 0.86, 0.78), "close", "")
+	var close_btn := _make_row("Закрыть планшет", Color(0.9, 0.86, 0.78), "close", "")
 	panel.add_child(close_btn)
 	close_btn.name = "CloseBtn"
 
@@ -155,14 +155,16 @@ func _refresh() -> void:
 	for c in _suspects.get_children():
 		c.queue_free()
 
-	_title.text = str(_case.get("title", "Аппарат волн"))
+	_title.text = str(_case.get("title", "Планшет"))
 	if not GameState.has_active_case():
 		_hint.text = "Дело не взято. Подойди к жителю с жёлтой точкой."
 		return
 
 	var events: Array = _case.get("events", [])
 	var need := GameState.VOTE_READY_COUNT
-	_hint.text = "Поймано %d (достаточно %d для вывода). %s" % [GameState.caught_count(), need, _case.get("ask", "")]
+	_hint.text = "Журнал и вердикт. Волны — на базе. Поймано %d/%d. %s" % [
+		GameState.caught_count(), need, _case.get("ask", "")
+	]
 
 	var any := false
 	for event in events:
@@ -178,7 +180,7 @@ func _refresh() -> void:
 		_log_box.add_child(block)
 	if not any:
 		var empty := Label.new()
-		empty.text = "Пока пусто. Подойди к местам квартала и поймай волны аппаратом."
+		empty.text = "Пока пусто. Вернись на базу к компьютеру, чтобы поймать волны."
 		empty.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		empty.add_theme_font_size_override("font_size", 17)
 		empty.add_theme_color_override("font_color", Color(0.4, 0.3, 0.22))
